@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-  <meta name="theme-color" content="#1e293b">
+  <meta name="theme-color" content="#0f1419">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="IEM GROUP — Sugerencia de pedidos para vendedores">
   <title>IEM · Pedidos vendedor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=2.0">
+  <link rel="stylesheet" href="vendedores.css?v=3.1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
 <body>
+  <div class="v-wrap">
   <header class="v-header">
     <img src="logo-iem.png" alt="IEM" class="v-logo">
     <div class="v-header-text">
@@ -40,11 +44,11 @@
 
   <div id="vApp" hidden>
     <section class="v-card">
-      <input type="search" id="vSearch" placeholder="Código, nombre, marca..." autocomplete="off">
+      <input type="search" id="vSearch" placeholder="Buscar por código, descripción o marca..." autocomplete="off">
       <div class="v-chips">
         <button type="button" class="v-chip active" data-tipo="">Todos</button>
-        <button type="button" class="v-chip" data-tipo="FRIOS">Fríos</button>
-        <button type="button" class="v-chip" data-tipo="SECOS">Secos</button>
+        <button type="button" class="v-chip" data-tipo="FRIOS">❄️ Fríos</button>
+        <button type="button" class="v-chip" data-tipo="SECOS">📦 Secos</button>
       </div>
       <div id="vResults" class="v-results">
         <p class="v-muted">Escribe para buscar en el catálogo.</p>
@@ -54,8 +58,8 @@
     <section class="v-card" id="vQtyCard" hidden>
       <div class="v-prod-sel" id="vProdSel"></div>
       <div class="v-qty-row">
-        <label>Cajas <input type="number" id="vCajas" min="0" value="0"></label>
-        <label>Unid. <input type="number" id="vUnidades" min="0" value="0"></label>
+        <label>Cajas <input type="number" id="vCajas" min="0" value="0" inputmode="numeric"></label>
+        <label>Unidades <input type="number" id="vUnidades" min="0" value="0" inputmode="numeric"></label>
         <span class="v-factor" id="vFactor">×1</span>
       </div>
       <button type="button" class="v-btn-primary" id="vAddBtn">Agregar al pedido</button>
@@ -78,10 +82,11 @@
       </label>
     </section>
   </div>
+  </div>
 
   <div id="vToast" class="v-toast" hidden></div>
 
-  <script src="app-vendedores.js?v=2.1"></script>
+  <script src="app-vendedores.js?v=2.2"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function (regs) {

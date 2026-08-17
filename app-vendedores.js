@@ -129,11 +129,7 @@
         if (!p.codigo || esBasuraVendedor(p)) return false;
         return true;
       });
-      // Si hay Fríos/Secos inferidos o de línea, priorizar solo esos
-      var conTipo = catalogo.filter(function (p) {
-        return p.tipo_almacen === 'FRIOS' || p.tipo_almacen === 'SECOS';
-      });
-      if (conTipo.length > 50) catalogo = conTipo;
+      // Todos los activos (habilitados), con o sin stock — sin filtrar por tipo
       if (!catalogo.length) {
         toast('Catálogo vacío. Sube Excel Laive en inventario (habilita Uniflex).', true);
       } else {
@@ -174,11 +170,14 @@
     $('vResults').innerHTML = list.map(function (p) {
       return (
         '<div class="v-item" data-cod="' + escapeAttr(p.codigo) + '">' +
-        '<div class="cod">' + escapeHtml(p.codigo) + '</div>' +
-        '<div class="desc">' + escapeHtml(p.descripcion) +
+        '<div class="v-item-top">' +
+        '<span class="cod">' + escapeHtml(p.codigo) + '</span>' +
+        '<span class="um">' + escapeHtml(p.unidad_ref || 'UND') + '</span>' +
+        '</div>' +
+        '<div class="desc">' + escapeHtml(p.descripcion) + '</div>' +
         '<div class="meta">' + escapeHtml(p.linea || '-') +
         (p.tipo_almacen ? ' · ' + p.tipo_almacen : '') +
-        '</div></div></div>'
+        '</div></div>'
       );
     }).join('');
   }
