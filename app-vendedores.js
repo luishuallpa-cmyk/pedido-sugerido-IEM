@@ -303,7 +303,13 @@
   function mostrarApp() {
     $('loginScreen').classList.add('hidden');
     $('appScreen').classList.remove('hidden');
-    $('vWho').textContent = (perfil.nombre || perfil.usuario) + ' · ' + (perfil.usuario || '');
+    var _nom = String((perfil && perfil.nombre) || '').trim();
+    var _usr = String((perfil && perfil.usuario) || '').trim();
+    if (_nom && _usr && _nom.toLowerCase() !== _usr.toLowerCase()) {
+      $('vWho').textContent = _nom + ' · ' + _usr;
+    } else {
+      $('vWho').textContent = _usr ? ('Vendedor ' + _usr) : 'Vendedor';
+    }
   }
 
   async function login() {
