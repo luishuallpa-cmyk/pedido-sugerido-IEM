@@ -73,15 +73,17 @@
   }
 
   function initSupabase() {
-    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-      toast('Falta config.js (Supabase)', true);
+    var url = (window.IEM_CONFIG && window.IEM_CONFIG.SUPABASE_URL) || window.SUPABASE_URL || '';
+    var key = (window.IEM_CONFIG && window.IEM_CONFIG.SUPABASE_ANON_KEY) || window.SUPABASE_ANON_KEY || '';
+    if (!url || !key) {
+      toast('Falta config.js (Supabase). Sube config.js a la raíz del repo.', true);
       return null;
     }
     if (!window.supabase || !window.supabase.createClient) {
-      toast('No cargó la librería Supabase', true);
+      toast('No cargó la librería Supabase (CDN). Revisa conexión.', true);
       return null;
     }
-    return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    return window.supabase.createClient(url, key);
   }
 
   async function cargarCatalogo() {
