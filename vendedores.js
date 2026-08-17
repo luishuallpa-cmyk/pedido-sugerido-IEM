@@ -42,6 +42,24 @@
     return f > 0 ? f : 1;
   }
 
+  function inferirTipo(p) {
+    // La tabla productos puede NO tener columna tipo_almacen (como en tu Supabase).
+    // Se infiere de linea / descripción, igual espíritu que inventario.
+    var t = normalizarTipo(p.tipo_almacen || p.Tipo || p.tipo || '');
+    if (t) return t;
+    t = normalizarTipo(p.linea || '');
+    if (t) return t;
+    var d = String(p.descripcion || p.Producto || '').toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/YOGURT|YOGHURT|\bYOG\b|QUESO|MOZARELLA|MOZZARELLA|JAMON|HOT\s*DOG|CHORIZO|MANTEQUILLA|MANJAR|UHT|BEB\.\s*CHOCOLATE|LECHE\s*(ENTER|LIGHT|SEMI|LAIVE)|BIO\s*DEF/.test(d)) {
+      return 'FRIOS';
+    }
+    if (/EVAPORAD|NUTRILAC|M\.\s*LAC|LECHE\s*EN\s*POLVO|WATTS|CEREAL|AVENA\s*CAJA/.test(d)) {
+      return 'SECOS';
+    }
+    return '';
+  }
+
   function mapProducto(p) {
     return {
       codigo: String(p.codigo || '').trim(),
@@ -51,7 +69,7 @@
       factor_empaque: factorDe(p),
       linea: p.linea || '',
       marca: p.marca || '',
-      tipo_almacen: normalizarTipo(p.tipo_almacen || p.Tipo || ''),
+      tipo_almacen: inferirTipo(p),
       activo: p.activo !== false
     };
   }
@@ -83,9 +101,10 @@
       const page = 1000;
       while (true) {
         // select(*) igual que inventario — evita error si falta alguna columna
+        // Columnas reales de tu tabla (SIN tipo_almacen: no existe en tu Supabase)
         const { data, error } = await sb
           .from('productos')
-          .select('*')
+          .select('codigo,codigo_fabrica,descripcion,unidad_ref,factor_empaque,linea,marca,activo,stock_teorico')
           .eq('activo', true)
           .order('codigo', { ascending: true })
           .range(from, from + page - 1);

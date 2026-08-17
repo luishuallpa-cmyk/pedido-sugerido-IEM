@@ -1,7 +1,8 @@
 /* IEM Pedidos Vendedor — Service Worker */
-const CACHE = 'iem-vendedores-v1.2';
+const CACHE = 'iem-vendedores-v1.5';
 const PRECACHE = [
   './',
+  './index.html',
   './vendedores.html',
   './vendedores.js',
   './vendedores.css',
@@ -19,7 +20,7 @@ const PRECACHE = [
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(CACHE).then(function (cache) {
-      return cache.addAll(PRECACHE).catch(function () { /* ignore missing */ });
+      return cache.addAll(PRECACHE).catch(function () {});
     }).then(function () { return self.skipWaiting(); })
   );
 });
@@ -38,7 +39,6 @@ self.addEventListener('fetch', function (event) {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // No cachear API Supabase
   if (url.hostname.indexOf('supabase') !== -1) return;
   event.respondWith(
     caches.match(req).then(function (cached) {
