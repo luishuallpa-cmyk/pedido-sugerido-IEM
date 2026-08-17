@@ -74,6 +74,16 @@
     };
   }
 
+  function esBasuraVendedor(p) {
+    var desc = String(p.descripcion || '').toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    var cod = String(p.codigo || '');
+    if (/RECOJO\s+DE\s+DEVOLUCION|DESCUENTOS?\s+VARIOS|VEH[IÍ]?CULO\s+MARCA|PRODUCTOS\s+VARIOS/.test(desc)) return true;
+    if (/^0+\d{1,3}$/.test(cod) && /DEVOLUCION|DESCUENTO|VEHICULO|VARIOS|OTROS/.test(desc)) return true;
+    return false;
+  }
+
+
   async function asegurarSesionSupabase() {
     if (!sb) return false;
     try {
@@ -115,9 +125,17 @@
         from += page;
         if (from >= 100000) break;
       }
-      catalogo = all.filter(function (p) { return p.codigo; });
+      catalogo = all.filter(function (p) {
+        if (!p.codigo || esBasuraVendedor(p)) return false;
+        return true;
+      });
+      // Si hay Fríos/Secos inferidos o de línea, priorizar solo esos
+      var conTipo = catalogo.filter(function (p) {
+        return p.tipo_almacen === 'FRIOS' || p.tipo_almacen === 'SECOS';
+      });
+      if (conTipo.length > 50) catalogo = conTipo;
       if (!catalogo.length) {
-        toast('Catálogo vacío (¿productos activos en inventario?).', true);
+        toast('Catálogo vacío. Sube Excel Laive en inventario (habilita Uniflex).', true);
       } else {
         toast('Catálogo: ' + catalogo.length + ' productos');
       }
@@ -160,7 +178,7 @@
         '<div class="desc">' + escapeHtml(p.descripcion) +
         '<div class="meta">' + escapeHtml(p.linea || '-') +
         (p.tipo_almacen ? ' · ' + p.tipo_almacen : '') +
-        ' · factor ' + p.factor_empaque + '</div></div></div>'
+        '</div></div></div>'
       );
     }).join('');
   }
