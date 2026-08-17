@@ -128,6 +128,12 @@
           if (esPromOCbm(p)) return false; // vendedores no piden PROM/CBM
           return true;
         });
+      // Lookup O(1) por código
+      window._vMapCodigo = Object.create(null);
+      catalogo.forEach(function (p) {
+        window._vMapCodigo[p.codigo] = p;
+        if (p.codigo_fabrica) window._vMapCodigo[String(p.codigo_fabrica)] = p;
+      });
       $('vCatalogCount').textContent = 'Catálogo: ' + catalogo.length + ' productos habilitados (sin PROM/CBM)';
       if (!catalogo.length) {
         toast('Sin productos habilitados. Sube el Excel base en inventario.', true);
@@ -150,11 +156,18 @@
       return;
     }
     var list = [];
-    for (var i = 0; i < catalogo.length && list.length < 40; i++) {
-      var p = catalogo[i];
-      if (filtroTipo && p.tipo_almacen !== filtroTipo) continue;
-      var blob = p._sb || (p.codigo + ' ' + p.descripcion).toLowerCase();
-      if (blob.indexOf(q) !== -1) list.push(p);
+    // Atajo: código exacto
+    if (window._vMapCodigo && window._vMapCodigo[q]) {
+      var ex = window._vMapCodigo[q];
+      if (!filtroTipo || ex.tipo_almacen === filtroTipo) list = [ex];
+    }
+    if (!list.length) {
+      for (var i = 0; i < catalogo.length && list.length < 40; i++) {
+        var p = catalogo[i];
+        if (filtroTipo && p.tipo_almacen !== filtroTipo) continue;
+        var blob = p._sb || (p.codigo + ' ' + p.descripcion).toLowerCase();
+        if (blob.indexOf(q) !== -1) list.push(p);
+      }
     }
 
     if (!list.length) {

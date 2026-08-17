@@ -1,5 +1,5 @@
 /* IEM Pedidos Vendedor — SW: network-first en app para evitar JS viejo */
-const CACHE = 'iem-vendedores-v2.4';
+const CACHE = 'iem-vendedores-v2.7';
 const PRECACHE = [
   './',
   './index.html',
