@@ -1,19 +1,12 @@
-/* IEM Inventario — Service Worker (PWA)
-   Cachea la interfaz para abrir más rápido y tolerar cortes breves de red.
-   Los datos (Supabase) siempre van por red. */
-const CACHE = 'iem-inventario-v3.51';
+/* IEM Pedidos Vendedor — Service Worker */
+const CACHE = 'iem-vendedores-v1.2';
 const PRECACHE = [
   './',
-  './index.html',
-  './style.css',
-  './admin.css',
-  './app.js',
-  './config.js',
-  './manifest.webmanifest',
   './vendedores.html',
   './vendedores.js',
   './vendedores.css',
-  './manifest-vendedores.webmanifest',
+  './config.js',
+  './manifest.webmanifest',
   './logo-iem.png',
   './icon-192.png',
   './icon-512.png',
@@ -23,58 +16,39 @@ const PRECACHE = [
   './favicon-64.png'
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-      .catch((err) => console.warn('[sw] precache', err))
+    caches.open(CACHE).then(function (cache) {
+      return cache.addAll(PRECACHE).catch(function () { /* ignore missing */ });
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) {
+        return caches.delete(k);
+      }));
+    }).then(function () { return self.clients.claim(); })
   );
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', function (event) {
   const req = event.request;
   if (req.method !== 'GET') return;
-
   const url = new URL(req.url);
-
-  // No interceptar APIs externas (Supabase, CDN, etc.)
-  if (url.origin !== self.location.origin) return;
-
-  // Navegación / HTML: red primero, fallback a cache
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-          return res;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // Estáticos: cache primero, luego red
+  // No cachear API Supabase
+  if (url.hostname.indexOf('supabase') !== -1) return;
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
+    caches.match(req).then(function (cached) {
+      const network = fetch(req).then(function (res) {
+        if (res && res.ok && url.origin === self.location.origin) {
+          const copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); });
+        }
+        return res;
+      }).catch(function () { return cached; });
       return cached || network;
     })
   );
