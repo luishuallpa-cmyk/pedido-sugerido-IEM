@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="IEM GROUP — Sugerencia de pedidos para vendedores">
+  <title>IEM · Pedidos vendedor</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="stylesheet" href="vendedores.css?v=1.1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="v-header">
+    <img src="logo-iem.png" alt="IEM" class="v-logo">
+    <div class="v-header-text">
+      <strong>Pedidos</strong>
+      <span id="vUserLabel">Vendedor</span>
+    </div>
+    <button type="button" class="v-btn-ghost" id="vLogoutBtn" hidden>Salir</button>
+  </header>
+
+  <!-- LOGIN -->
+  <section class="v-card" id="vLoginCard">
+    <h1>Ingreso vendedor</h1>
+    <p class="v-muted">Mismo usuario y clave del sistema IEM (rol vendedor).</p>
+    <label class="v-label">Código
+      <input type="text" id="vCodigo" inputmode="numeric" autocomplete="username" placeholder="Ej. 400">
+    </label>
+    <label class="v-label">Clave
+      <input type="password" id="vClave" autocomplete="current-password" placeholder="Clave">
+    </label>
+    <button type="button" class="v-btn-primary" id="vLoginBtn">Entrar</button>
+    <p class="v-hint" id="vLoginHint"></p>
+  </section>
+
+  <!-- APP -->
+  <main id="vApp" hidden>
+    <section class="v-card v-search">
+      <input type="search" id="vSearch" placeholder="Código, nombre, marca..." enterkeyhint="search" autocomplete="off">
+      <div class="v-chips">
+        <button type="button" class="v-chip active" data-tipo="">Todos</button>
+        <button type="button" class="v-chip" data-tipo="FRIOS">Fríos</button>
+        <button type="button" class="v-chip" data-tipo="SECOS">Secos</button>
+      </div>
+      <div id="vResults" class="v-results">
+        <p class="v-muted">Escribe para buscar en el catálogo.</p>
+      </div>
+    </section>
+
+    <section class="v-card" id="vQtyCard" hidden>
+      <div class="v-prod-sel" id="vProdSel"></div>
+      <div class="v-qty-row">
+        <label>Cajas <input type="number" id="vCajas" min="0" value="0"></label>
+        <label>Unid. <input type="number" id="vUnidades" min="0" value="0"></label>
+        <span class="v-factor" id="vFactor">×1</span>
+      </div>
+      <button type="button" class="v-btn-primary" id="vAddBtn">Agregar al pedido</button>
+    </section>
+
+    <section class="v-card">
+      <div class="v-ped-head">
+        <h2>Mi pedido <span class="v-badge" id="vPedCount">0</span></h2>
+        <div class="v-ped-actions">
+          <button type="button" class="v-btn-ghost" id="vClearBtn">Vaciar</button>
+          <button type="button" class="v-btn-primary" id="vSendBtn">Enviar sugerencia</button>
+        </div>
+      </div>
+      <p class="v-muted" id="vPedTotales">Cajas 0 · Unidades 0</p>
+      <div id="vPedList" class="v-ped-list">
+        <p class="v-muted">Aún no hay productos.</p>
+      </div>
+      <label class="v-label">Notas (opcional)
+        <textarea id="vNotas" rows="2" placeholder="Cliente, horario, observaciones..."></textarea>
+      </label>
+    </section>
+  </main>
+
+  <div class="v-toast" id="vToast" hidden></div>
+  <script src="vendedores.js?v=1.1"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    }
+  </script>
+</body>
+</html>
