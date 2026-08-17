@@ -343,7 +343,37 @@
     mostrarLogin();
   }
 
+
+  // Tema claro/oscuro (mismo criterio que inventario; el usuario elige)
+  var THEME_KEY = 'buscador_tema';
+  function aplicarTema(tema) {
+    if (tema === 'light') document.body.classList.add('light-theme');
+    else document.body.classList.remove('light-theme');
+    var icon = tema === 'light' ? '☀️' : '🌙';
+    ['themeToggleBtn', 'themeToggleBtnApp'].forEach(function (id) {
+      var b = $(id);
+      if (b) b.textContent = icon;
+    });
+    try {
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', tema === 'light' ? '#0A784C' : '#0c1220');
+    } catch (e) {}
+  }
+  function cargarTema() {
+    var tema = 'dark';
+    try { tema = localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) {}
+    aplicarTema(tema);
+  }
+  function alternarTema() {
+    var esClaro = document.body.classList.contains('light-theme');
+    var nuevo = esClaro ? 'dark' : 'light';
+    aplicarTema(nuevo);
+    try { localStorage.setItem(THEME_KEY, nuevo); } catch (e) {}
+  }
+
   function bind() {
+    var t1 = $('themeToggleBtn'); if (t1) t1.addEventListener('click', alternarTema);
+    var t2 = $('themeToggleBtnApp'); if (t2) t2.addEventListener('click', alternarTema);
     $('vLoginBtn').addEventListener('click', login);
     $('vPass').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') login();
@@ -402,6 +432,7 @@
     }
   }
 
+  cargarTema();
   bind();
   tryRestore();
 })();
