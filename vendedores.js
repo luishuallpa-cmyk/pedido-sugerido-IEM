@@ -56,9 +56,25 @@
     };
   }
 
+  async function asegurarSesionSupabase() {
+    if (!sb) return false;
+    try {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session) return true;
+    } catch (e) {}
+    return false;
+  }
+
   async function cargarCatalogo() {
     if (!sb) {
       toast('Sin conexión a Supabase (config.js).', true);
+      return;
+    }
+    // Misma base que inventario: tabla productos (requiere sesión Auth por RLS)
+    const okSes = await asegurarSesionSupabase();
+    if (!okSes) {
+      toast('Sesión expirada. Vuelve a iniciar sesión.', true);
+      logout(true);
       return;
     }
     try {
@@ -66,22 +82,34 @@
       let from = 0;
       const page = 1000;
       while (true) {
+        // select(*) igual que inventario — evita error si falta alguna columna
         const { data, error } = await sb
           .from('productos')
-          .select('codigo,codigo_fabrica,descripcion,unidad_ref,factor_empaque,linea,marca,tipo_almacen,activo')
+          .select('*')
           .eq('activo', true)
+          .order('codigo', { ascending: true })
           .range(from, from + page - 1);
         if (error) throw error;
         if (!data || !data.length) break;
         all = all.concat(data.map(mapProducto));
         if (data.length < page) break;
         from += page;
+        if (from >= 100000) break;
       }
       catalogo = all.filter(function (p) { return p.codigo; });
-      toast('Catálogo: ' + catalogo.length + ' productos');
+      if (!catalogo.length) {
+        toast('Catálogo vacío (¿productos activos en inventario?).', true);
+      } else {
+        toast('Catálogo: ' + catalogo.length + ' productos');
+      }
     } catch (e) {
       console.error(e);
-      toast('No se pudo cargar catálogo: ' + (e.message || e), true);
+      const msg = String((e && e.message) || e || '');
+      if (/JWT|session|authenticated|permission|RLS|policy/i.test(msg)) {
+        toast('Sin permiso o sesión. Cierra sesión y entra de nuevo.', true);
+      } else {
+        toast('No se pudo cargar catálogo: ' + msg, true);
+      }
     }
   }
 
@@ -282,14 +310,15 @@
     cargarCatalogo();
   }
 
-  function logout() {
+  function logout(silent) {
     sesion = null;
     try {
       localStorage.removeItem(SES_KEY);
-      localStorage.removeItem(PED_KEY);
+      if (!silent) localStorage.removeItem(PED_KEY);
     } catch (e) {}
     try { if (sb) sb.auth.signOut(); } catch (e2) {}
-    pedido = [];
+    if (!silent) pedido = [];
+    catalogo = [];
     $('vApp').hidden = true;
     $('vLoginCard').hidden = false;
     $('vLogoutBtn').hidden = true;
@@ -380,12 +409,42 @@
   });
   $('vSendBtn').addEventListener('click', enviarSugerencia);
 
-  // Restaurar sesión
-  try {
-    const raw = localStorage.getItem(SES_KEY);
-    if (raw) {
-      sesion = JSON.parse(raw);
-      if (sesion && sesion.codigo) entrarApp();
+  // Restaurar sesión solo si Supabase aún tiene JWT válido
+  (async function restaurar() {
+    try {
+      if (!sb) return;
+      const { data } = await sb.auth.getSession();
+      if (!data || !data.session) {
+        try { localStorage.removeItem(SES_KEY); } catch (e) {}
+        return;
+      }
+      const raw = localStorage.getItem(SES_KEY);
+      if (raw) {
+        sesion = JSON.parse(raw);
+        if (sesion && sesion.codigo) {
+          entrarApp();
+          return;
+        }
+      }
+      // Hay sesión Auth pero no meta local: rearmar desde perfiles
+      const uid = data.session.user.id;
+      const { data: perfil } = await sb.from('perfiles')
+        .select('usuario, nombre, rol, activo')
+        .eq('id', uid)
+        .maybeSingle();
+      if (perfil && String(perfil.rol || '').toLowerCase() === 'vendedor' && perfil.activo !== false) {
+        sesion = {
+          codigo: String(perfil.usuario || ''),
+          nombre: perfil.nombre || perfil.usuario || '',
+          ruta: '',
+          celular: '',
+          userId: uid
+        };
+        try { localStorage.setItem(SES_KEY, JSON.stringify(sesion)); } catch (e) {}
+        entrarApp();
+      }
+    } catch (e) {
+      console.warn('restaurar', e);
     }
-  } catch (e) {}
+  })();
 })();
