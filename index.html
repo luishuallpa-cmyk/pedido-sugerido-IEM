@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=2.4">
+  <link rel="stylesheet" href="vendedores.css?v=2.6">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -96,13 +96,11 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=2.4"></script>
-  <script src="app-vendedores.js?v=2.4"></script>
+  <script src="config.js?v=2.6"></script>
+  <script src="app-vendedores.js?v=2.6"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister(); });
-      }).catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=2.6').catch(function () {});
     }
   </script>
 </body>

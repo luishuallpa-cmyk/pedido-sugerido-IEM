@@ -1,20 +1,14 @@
-/* IEM Pedidos Vendedor — Service Worker */
-const CACHE = 'iem-vendedores-v1.5';
+/* IEM Pedidos Vendedor — SW: network-first en app para evitar JS viejo */
+const CACHE = 'iem-vendedores-v2.4';
 const PRECACHE = [
   './',
   './index.html',
-  './vendedores.html',
-  './vendedores.js',
-  './vendedores.css',
   './config.js',
+  './vendedores.css',
   './manifest.webmanifest',
   './logo-iem.png',
   './icon-192.png',
-  './icon-512.png',
-  './icon-512-maskable.png',
-  './apple-touch-icon.png',
-  './favicon-32.png',
-  './favicon-64.png'
+  './favicon-32.png'
 ];
 
 self.addEventListener('install', function (event) {
@@ -36,15 +30,32 @@ self.addEventListener('activate', function (event) {
 });
 
 self.addEventListener('fetch', function (event) {
-  const req = event.request;
+  var req = event.request;
   if (req.method !== 'GET') return;
-  const url = new URL(req.url);
+  var url = new URL(req.url);
   if (url.hostname.indexOf('supabase') !== -1) return;
+  if (url.hostname.indexOf('cdn') !== -1 || url.hostname.indexOf('jsdelivr') !== -1) return;
+
+  var path = url.pathname;
+  var isShell = /\\.(js|css)(\\?|$)/.test(path) || /index\\.html$/.test(path) || /vendedores\\.html$/.test(path) || path.endsWith('/');
+  if (isShell && url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.ok) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); });
+        }
+        return res;
+      }).catch(function () { return caches.match(req); })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(req).then(function (cached) {
-      const network = fetch(req).then(function (res) {
+      var network = fetch(req).then(function (res) {
         if (res && res.ok && url.origin === self.location.origin) {
-          const copy = res.clone();
+          var copy = res.clone();
           caches.open(CACHE).then(function (c) { c.put(req, copy); });
         }
         return res;

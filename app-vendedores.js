@@ -2,6 +2,14 @@
   'use strict';
 
   function $(id) { return document.getElementById(id); }
+  function debounce(fn, ms) {
+    var t;
+    return function () {
+      var ctx = this, args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(ctx, args); }, ms);
+    };
+  }
 
   var supabaseClient = null;
   var perfil = null;
@@ -59,7 +67,7 @@
   }
 
   function mapProducto(p) {
-    return {
+    var o = {
       codigo: String(p.codigo || '').trim(),
       codigo_fabrica: p.codigo_fabrica ? String(p.codigo_fabrica) : '',
       descripcion: String(p.descripcion || '').trim(),
@@ -70,6 +78,8 @@
       tipo_almacen: inferirTipo(p),
       activo: p.activo !== false
     };
+    o._sb = (o.codigo + '\u0001' + o.codigo_fabrica + '\u0001' + o.descripcion + '\u0001' + o.linea + '\u0001' + o.marca).toLowerCase();
+    return o;
   }
 
   function initSupabase() {
@@ -139,11 +149,13 @@
       box.innerHTML = '<p class="muted">Escribe un código o nombre…</p>';
       return;
     }
-    var list = catalogo.filter(function (p) {
-      if (filtroTipo && p.tipo_almacen !== filtroTipo) return false;
-      var blob = (p.codigo + ' ' + p.codigo_fabrica + ' ' + p.descripcion + ' ' + p.linea).toLowerCase();
-      return blob.indexOf(q) !== -1;
-    }).slice(0, 40);
+    var list = [];
+    for (var i = 0; i < catalogo.length && list.length < 40; i++) {
+      var p = catalogo[i];
+      if (filtroTipo && p.tipo_almacen !== filtroTipo) continue;
+      var blob = p._sb || (p.codigo + ' ' + p.descripcion).toLowerCase();
+      if (blob.indexOf(q) !== -1) list.push(p);
+    }
 
     if (!list.length) {
       box.innerHTML = '<p class="muted">Sin resultados</p>';
@@ -249,7 +261,7 @@
     var payload = {
       vendedor_codigo: perfil.usuario,
       vendedor_nombre: perfil.nombre || perfil.usuario,
-      ruta: perfil.ruta || null,
+      ruta: (perfil && (perfil.ruta || perfil.Ruta)) || null,
       items: pedido,
       total_cajas: tc,
       total_unidades: tu,
@@ -298,13 +310,13 @@
       var uid = data.user && data.user.id;
       var { data: perf, error: e2 } = await supabaseClient
         .from('perfiles')
-        .select('usuario, nombre, rol, activo, ruta')
+        .select('usuario, nombre, rol, activo')
         .eq('usuario', user)
         .maybeSingle();
       if (e2) throw e2;
       if (!perf) {
         // fallback by auth id if column exists
-        var r2 = await supabaseClient.from('perfiles').select('usuario, nombre, rol, activo, ruta').limit(20);
+        var r2 = await supabaseClient.from('perfiles').select('usuario, nombre, rol, activo').limit(20);
         if (r2.data) {
           perf = r2.data.find(function (x) {
             return String(x.usuario || '').toLowerCase() === user.toLowerCase();
@@ -379,7 +391,7 @@
       if (e.key === 'Enter') login();
     });
     $('vLogoutBtn').addEventListener('click', logout);
-    $('vSearch').addEventListener('input', renderResults);
+    $('vSearch').addEventListener('input', debounce(renderResults, 150));
     $('vResults').addEventListener('click', function (e) {
       var btn = e.target.closest('[data-codigo]');
       if (btn) seleccionar(btn.getAttribute('data-codigo'));
@@ -419,7 +431,7 @@
       var user = email.replace(/@iem\.local$/i, '');
       var { data: perf } = await supabaseClient
         .from('perfiles')
-        .select('usuario, nombre, rol, activo, ruta')
+        .select('usuario, nombre, rol, activo')
         .eq('usuario', user)
         .maybeSingle();
       if (perf && String(perf.rol || '').toLowerCase() === 'vendedor' && perf.activo !== false) {
