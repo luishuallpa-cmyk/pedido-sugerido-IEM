@@ -74,6 +74,13 @@
     };
   }
 
+  function esPromoVendedor(p) {
+    var desc = String(p.descripcion || '').toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/\bPROM\b|\bPROM\.|PROM\s|\bCBM\b|COMBO\b/.test(desc)) return true;
+    return false;
+  }
+
   function esBasuraVendedor(p) {
     var desc = String(p.descripcion || '').toUpperCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -126,10 +133,10 @@
         if (from >= 100000) break;
       }
       catalogo = all.filter(function (p) {
-        if (!p.codigo || esBasuraVendedor(p)) return false;
+        if (!p.codigo || esBasuraVendedor(p) || esPromoVendedor(p)) return false;
         return true;
       });
-      // Todos los activos (habilitados), con o sin stock — sin filtrar por tipo
+      // Activos de base (sin PROM/CBM ni códigos de servicio)
       if (!catalogo.length) {
         toast('Catálogo vacío. Sube Excel Laive en inventario (habilita Uniflex).', true);
       } else {
@@ -195,13 +202,21 @@
     selected = catalogo.find(function (p) { return p.codigo === codigo; }) || null;
     if (!selected) return;
     $('vQtyCard').hidden = false;
-    $('vProdSel').innerHTML =
-      '<strong>' + escapeHtml(selected.codigo) + '</strong> · ' +
-      escapeHtml(selected.descripcion);
+    $('vProdSel').textContent = selected.descripcion || selected.codigo;
+    var codes = 'Cód: ' + selected.codigo;
+    if (selected.codigo_fabrica) codes += ' | Cód. Fábrica: ' + selected.codigo_fabrica;
+    var elCodes = $('vProdCodes');
+    if (elCodes) elCodes.textContent = codes;
     $('vFactor').textContent = '×' + selected.factor_empaque;
     $('vCajas').value = '0';
     $('vUnidades').value = '0';
-    $('vCajas').focus();
+    try { $('vCajas').focus(); } catch (e) {}
+  }
+
+  function cambiarProducto() {
+    selected = null;
+    $('vQtyCard').hidden = true;
+    try { $('vSearch').focus(); } catch (e) {}
   }
 
   function renderPedido() {
@@ -334,7 +349,7 @@
   }
 
   function entrarApp() {
-    $('vLoginCard').hidden = true;
+    $('vLoginCard').hidden = true; $('vLoginCard').setAttribute('hidden', '');
     $('vApp').hidden = false;
     $('vLogoutBtn').hidden = false;
     $('vUserLabel').textContent = (sesion.nombre || sesion.codigo) +
@@ -356,7 +371,7 @@
     if (!silent) pedido = [];
     catalogo = [];
     $('vApp').hidden = true;
-    $('vLoginCard').hidden = false;
+    $('vLoginCard').hidden = false; $('vLoginCard').removeAttribute('hidden');
     $('vLogoutBtn').hidden = true;
     $('vUserLabel').textContent = 'Vendedor';
   }
@@ -426,6 +441,8 @@
     });
   });
   $('vAddBtn').addEventListener('click', agregarAlPedido);
+  var btnCambiar = $('vCambiarProd');
+  if (btnCambiar) btnCambiar.addEventListener('click', cambiarProducto);
   $('vClearBtn').addEventListener('click', function () {
     if (!pedido.length) return;
     if (!confirm('¿Vaciar el pedido?')) return;
