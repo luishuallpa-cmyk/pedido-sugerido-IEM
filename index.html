@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-  <meta name="theme-color" content="#0f1419">
+  <meta name="theme-color" content="#0A784C">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="description" content="IEM GROUP — Pedidos vendedor">
+  <meta name="description" content="IEM GROUP — Sugerencia de pedido (vendedores)">
   <title>IEM · Pedidos vendedor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,94 +13,93 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=3.4">
+  <link rel="stylesheet" href="vendedores.css?v=2.1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
 </head>
 <body>
-  <!-- LOGIN (mismo concepto que inventario) -->
-  <div class="login-overlay" id="vLoginCard">
-    <div class="login-card">
+  <!-- LOGIN (mismo estilo que inventario) -->
+  <div id="loginScreen" class="login-wrap">
+    <div class="card login-card">
       <div class="login-logo">
-        <img src="logo-iem.png" alt="IEM GROUP">
+        <img src="logo-iem.png" alt="IEM GROUP · Laive" width="160" height="auto">
       </div>
-      <h2>Iniciar sesión</h2>
-      <div class="login-field">
-        <label for="vCodigo">Usuario</label>
-        <input type="text" id="vCodigo" inputmode="numeric" autocomplete="username" placeholder="Tu usuario">
+      <h1>Pedidos vendedor</h1>
+      <p class="sub">Sugerencia de pedido · IEM GROUP</p>
+      <div class="field">
+        <label for="vUser">Usuario (código)</label>
+        <input id="vUser" type="text" inputmode="numeric" autocomplete="username" placeholder="Ej. 400">
       </div>
-      <div class="login-field">
-        <label for="vClave">Clave</label>
-        <input type="password" id="vClave" autocomplete="current-password" placeholder="Tu clave">
+      <div class="field">
+        <label for="vPass">Clave</label>
+        <input id="vPass" type="password" autocomplete="current-password" placeholder="••••">
       </div>
-      <p class="v-hint" id="vLoginHint"></p>
-      <button type="button" class="btn-primary login-btn" id="vLoginBtn">Entrar</button>
+      <button type="button" class="btn btn-primary" id="vLoginBtn">Entrar</button>
+      <p class="muted" style="margin-top:0.75rem;text-align:center;font-size:0.78rem;">Misma cuenta Auth que inventario (rol vendedor)</p>
     </div>
   </div>
 
-  <div id="vApp" class="v-app" hidden>
-    <header class="v-header">
-      <img src="logo-iem.png" alt="IEM" class="v-logo">
-      <div class="v-header-text">
-        <strong>Pedidos</strong>
-        <span id="vUserLabel">Vendedor</span>
-      </div>
-      <button type="button" class="v-btn-ghost" id="vLogoutBtn">Salir</button>
-    </header>
+  <!-- APP -->
+  <div id="appScreen" class="container hidden">
+    <div class="header-bar">
+      <div class="who" id="vWho">—</div>
+      <button type="button" class="btn btn-outline" id="vLogoutBtn">Salir</button>
+    </div>
 
-    <section class="v-card">
-      <input type="search" id="vSearch" placeholder="Buscar por código, descripción o marca..." autocomplete="off">
-      <div class="v-chips">
-        <button type="button" class="v-chip active" data-tipo="">Todos</button>
-        <button type="button" class="v-chip" data-tipo="FRIOS">❄️ Fríos</button>
-        <button type="button" class="v-chip" data-tipo="SECOS">📦 Secos</button>
+    <div class="card">
+      <div class="filtros" id="vFiltros">
+        <button type="button" class="filtro-btn active" data-tipo="">Todos</button>
+        <button type="button" class="filtro-btn" data-tipo="FRIOS">Fríos</button>
+        <button type="button" class="filtro-btn" data-tipo="SECOS">Secos</button>
       </div>
-      <div id="vResults" class="v-results">
-        <p class="v-muted">Escribe para buscar en el catálogo.</p>
+      <div class="search-row">
+        <input type="search" id="vSearch" placeholder="Código o nombre…" autocomplete="off" enterkeyhint="search">
       </div>
-    </section>
+      <div class="catalog-count" id="vCatalogCount">Catálogo: —</div>
+      <div class="result-list" id="vResults"></div>
+    </div>
 
-    <!-- Tarjeta producto (estilo inventario, datos necesarios) -->
-    <section class="v-card v-prod-card" id="vQtyCard" hidden>
-      <div class="pa-card">
-        <div class="pa-card-top">
-          <div class="pa-desc" id="vProdSel"></div>
-          <button type="button" class="pa-cambiar" id="vCambiarProd">← Cambiar producto</button>
+    <div class="producto-card hidden" id="vProductoCard">
+      <div class="pc-name" id="vProdName">—</div>
+      <div class="pc-codes" id="vProdCodes">Cód: — · Cód. Fábrica: —</div>
+      <div class="qty-row">
+        <div class="field">
+          <label for="vCajas">Cajas</label>
+          <input id="vCajas" type="number" min="0" step="1" value="0" inputmode="numeric">
         </div>
-        <div class="pa-codes" id="vProdCodes"></div>
-      </div>
-      <div class="v-qty-row">
-        <label>Cajas <input type="number" id="vCajas" min="0" value="0" inputmode="numeric"></label>
-        <label>Unidades <input type="number" id="vUnidades" min="0" value="0" inputmode="numeric"></label>
-        <span class="v-factor" id="vFactor">×1</span>
-      </div>
-      <button type="button" class="btn-primary" id="vAddBtn">Agregar al pedido</button>
-    </section>
-
-    <section class="v-card">
-      <div class="v-ped-head">
-        <h2>Mi pedido <span class="v-badge" id="vPedCount">0</span></h2>
-        <div class="v-ped-actions">
-          <button type="button" class="v-btn-ghost" id="vClearBtn">Vaciar</button>
-          <button type="button" class="btn-primary v-btn-send" id="vSendBtn">Enviar sugerencia</button>
+        <div class="field">
+          <label for="vUnidades">Unidades</label>
+          <input id="vUnidades" type="number" min="0" step="1" value="0" inputmode="numeric">
         </div>
       </div>
-      <p class="v-muted" id="vPedTotales">Cajas 0 · Unidades 0</p>
-      <div id="vPedList" class="v-ped-list">
-        <p class="v-muted">Aún no hay productos.</p>
+      <p class="muted" id="vFactor">Factor: —</p>
+      <div class="pc-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <button type="button" class="btn btn-success" id="vAddBtn" style="flex:1;">Agregar al pedido</button>
+        <button type="button" class="btn btn-outline" id="vClearProd" style="flex:1;">← Cambiar producto</button>
       </div>
-      <label class="v-label">Notas (opcional)
-        <textarea id="vNotas" rows="2" placeholder="Cliente, horario, observaciones..."></textarea>
-      </label>
-    </section>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:1rem;margin-bottom:0.55rem;">Pedido sugerido</h2>
+      <div class="pedido-list" id="vPedidoList">
+        <p class="muted">Aún no hay productos.</p>
+      </div>
+      <div class="totales" id="vTotales">0 cajas · 0 unidades</div>
+      <div class="field">
+        <label for="vNotas">Notas (opcional)</label>
+        <textarea id="vNotas" placeholder="Observaciones para almacén…"></textarea>
+      </div>
+      <button type="button" class="btn btn-primary" id="vSendBtn">Enviar sugerencia</button>
+    </div>
   </div>
 
-  <div id="vToast" class="v-toast" hidden></div>
-  <script src="app-vendedores.js?v=2.4"></script>
+  <div id="vToast" class="toast hidden"></div>
+
+  <script src="config.js"></script>
+  <script src="app-vendedores.js?v=2.1"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (r) {
-        r.forEach(function (x) { x.unregister(); });
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
       }).catch(function () {});
     }
   </script>

@@ -1,229 +1,217 @@
-/* IEM GROUP — PWA vendedores: buscar catálogo y enviar sugerencia de pedido a Supabase */
 (function () {
   'use strict';
 
-  const cfg = window.IEM_CONFIG || {};
-  let sb = null;
-  if (window.supabase && cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY) {
-    sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-  }
+  function $(id) { return document.getElementById(id); }
 
-  const SES_KEY = 'iem_vendedor_sesion_v1';
-  const PED_KEY = 'iem_vendedor_pedido_v1';
+  var supabaseClient = null;
+  var perfil = null;
+  var catalogo = [];
+  var pedido = [];
+  var selected = null;
+  var filtroTipo = '';
 
-  let catalogo = [];
-  let pedido = [];
-  let sesion = null;
-  let selected = null;
-  let filtroTipo = '';
-  let searchTimer = null;
-
-  const $ = function (id) { return document.getElementById(id); };
-
-  function toast(msg, isError) {
-    const el = $('vToast');
+  function toast(msg, err) {
+    var el = $('vToast');
     if (!el) return;
     el.textContent = msg;
-    el.classList.toggle('error', !!isError);
-    el.hidden = false;
+    el.classList.toggle('err', !!err);
+    el.classList.remove('hidden');
     clearTimeout(toast._t);
-    toast._t = setTimeout(function () { el.hidden = true; }, 2800);
+    toast._t = setTimeout(function () { el.classList.add('hidden'); }, 3200);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function normalizarTipo(t) {
-    const s = String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (/FRIO/.test(s)) return 'FRIOS';
-    if (/SECO/.test(s)) return 'SECOS';
+    t = String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (t.indexOf('FRIO') !== -1) return 'FRIOS';
+    if (t.indexOf('SECO') !== -1) return 'SECOS';
     return '';
-  }
-
-  function factorDe(p) {
-    const f = Number(p.factor_empaque || p.FactorEmpaque || 1);
-    return f > 0 ? f : 1;
   }
 
   function inferirTipo(p) {
-    // La tabla productos puede NO tener columna tipo_almacen (como en tu Supabase).
-    // Se infiere de linea / descripción, igual espíritu que inventario.
     var t = normalizarTipo(p.tipo_almacen || p.Tipo || p.tipo || '');
     if (t) return t;
-    t = normalizarTipo(p.linea || '');
-    if (t) return t;
-    var d = String(p.descripcion || p.Producto || '').toUpperCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (/YOGURT|YOGHURT|\bYOG\b|QUESO|MOZARELLA|MOZZARELLA|JAMON|HOT\s*DOG|CHORIZO|MANTEQUILLA|MANJAR|UHT|BEB\.\s*CHOCOLATE|LECHE\s*(ENTER|LIGHT|SEMI|LAIVE)|BIO\s*DEF/.test(d)) {
-      return 'FRIOS';
-    }
-    if (/EVAPORAD|NUTRILAC|M\.\s*LAC|LECHE\s*EN\s*POLVO|WATTS|CEREAL|AVENA\s*CAJA/.test(d)) {
-      return 'SECOS';
-    }
+    var blob = (String(p.linea || '') + ' ' + String(p.descripcion || '')).toUpperCase();
+    if (/YOGUR|QUESO|LECHE|FRESCA|JAMON|SALCHICH|MORTADEL|MANTECOS|CREMA|FRIO/.test(blob)) return 'FRIOS';
+    if (/EVAPOR|LECHE.*CAJA|WATTS|NUTRILAC|SECO|GALLETA|AVENA/.test(blob)) return 'SECOS';
     return '';
+  }
+
+  function esPromOCbm(p) {
+    var d = String(p.descripcion || '').toUpperCase();
+    var c = String(p.codigo || '');
+    if (/\bPROM\b|\bPROM\.|PROM\s|\bCBM\b|COMBO\b/.test(d)) return true;
+    if (/^9\d{3}$/.test(c) && /PROM|CBM|COMBO/.test(d)) return true;
+    return false;
+  }
+
+  function esBasura(p) {
+    var d = String(p.descripcion || '').toUpperCase();
+    var c = String(p.codigo || '');
+    if (/RECOJO|VEHICULO|VEHÍCULO|DESCUENTO|SERVICIO|FLETE|TRANSPORTE/.test(d)) return true;
+    if (/^0+$/.test(c)) return true;
+    return false;
   }
 
   function mapProducto(p) {
     return {
       codigo: String(p.codigo || '').trim(),
-      codigo_fabrica: p.codigo_fabrica || '',
-      descripcion: p.descripcion || p.Producto || '',
+      codigo_fabrica: p.codigo_fabrica ? String(p.codigo_fabrica) : '',
+      descripcion: String(p.descripcion || '').trim(),
       unidad_ref: p.unidad_ref || '',
-      factor_empaque: factorDe(p),
-      linea: p.linea || '',
-      marca: p.marca || '',
+      factor_empaque: Number(p.factor_empaque) > 0 ? Number(p.factor_empaque) : 1,
+      linea: p.linea ? String(p.linea) : '',
+      marca: p.marca ? String(p.marca) : '',
       tipo_almacen: inferirTipo(p),
       activo: p.activo !== false
     };
   }
 
-  async function asegurarSesionSupabase() {
-    if (!sb) return false;
-    try {
-      const { data } = await sb.auth.getSession();
-      if (data && data.session) return true;
-    } catch (e) {}
-    return false;
+  function initSupabase() {
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+      toast('Falta config.js (Supabase)', true);
+      return null;
+    }
+    if (!window.supabase || !window.supabase.createClient) {
+      toast('No cargó la librería Supabase', true);
+      return null;
+    }
+    return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
   }
 
   async function cargarCatalogo() {
-    if (!sb) {
-      toast('Sin conexión a Supabase (config.js).', true);
-      return;
-    }
-    // Misma base que inventario: tabla productos (requiere sesión Auth por RLS)
-    const okSes = await asegurarSesionSupabase();
-    if (!okSes) {
-      toast('Sesión expirada. Vuelve a iniciar sesión.', true);
-      logout(true);
+    if (!supabaseClient) return;
+    var { data: sess } = await supabaseClient.auth.getSession();
+    if (!sess || !sess.session) {
+      toast('Sesión expirada. Vuelve a entrar.', true);
+      mostrarLogin();
       return;
     }
     try {
-      let all = [];
-      let from = 0;
-      const page = 1000;
+      var all = [];
+      var from = 0;
+      var page = 1000;
       while (true) {
-        // select(*) igual que inventario — evita error si falta alguna columna
-        // Columnas reales de tu tabla (SIN tipo_almacen: no existe en tu Supabase)
-        const { data, error } = await sb
+        var { data, error } = await supabaseClient
           .from('productos')
-          .select('codigo,codigo_fabrica,descripcion,unidad_ref,factor_empaque,linea,marca,activo,stock_teorico')
+          .select('codigo,codigo_fabrica,descripcion,unidad_ref,factor_empaque,linea,marca,activo')
           .eq('activo', true)
-          .order('codigo', { ascending: true })
           .range(from, from + page - 1);
         if (error) throw error;
         if (!data || !data.length) break;
-        all = all.concat(data.map(mapProducto));
+        all = all.concat(data);
         if (data.length < page) break;
         from += page;
-        if (from >= 100000) break;
       }
-      catalogo = all.filter(function (p) { return p.codigo; });
+      catalogo = all
+        .map(mapProducto)
+        .filter(function (p) {
+          if (!p.codigo) return false;
+          if (esBasura(p)) return false;
+          if (esPromOCbm(p)) return false; // vendedores no piden PROM/CBM
+          return true;
+        });
+      $('vCatalogCount').textContent = 'Catálogo: ' + catalogo.length + ' productos habilitados (sin PROM/CBM)';
       if (!catalogo.length) {
-        toast('Catálogo vacío (¿productos activos en inventario?).', true);
+        toast('Sin productos habilitados. Sube el Excel base en inventario.', true);
       } else {
         toast('Catálogo: ' + catalogo.length + ' productos');
       }
+      renderResults();
     } catch (e) {
       console.error(e);
-      const msg = String((e && e.message) || e || '');
-      if (/JWT|session|authenticated|permission|RLS|policy/i.test(msg)) {
-        toast('Sin permiso o sesión. Cierra sesión y entra de nuevo.', true);
-      } else {
-        toast('No se pudo cargar catálogo: ' + msg, true);
-      }
+      toast('No se pudo cargar catálogo: ' + (e.message || e), true);
     }
   }
 
-  function buscar(q) {
-    const term = String(q || '').trim().toUpperCase();
-    if (!term || term.length < 1) {
-      $('vResults').innerHTML = '<p class="v-muted">Escribe para buscar en el catálogo.</p>';
+  function renderResults() {
+    var q = String(($('vSearch') && $('vSearch').value) || '').trim().toLowerCase();
+    var box = $('vResults');
+    if (!box) return;
+    if (!q || q.length < 1) {
+      box.innerHTML = '<p class="muted">Escribe un código o nombre…</p>';
       return;
     }
-    const parts = term.split(/\s+/).filter(Boolean);
-    let list = catalogo.filter(function (p) {
-      if (filtroTipo && p.tipo_almacen && p.tipo_almacen !== filtroTipo) return false;
-      if (filtroTipo && !p.tipo_almacen) return false;
-      const blob = (
-        p.codigo + ' ' + p.codigo_fabrica + ' ' + p.descripcion + ' ' +
-        (p.marca || '') + ' ' + (p.linea || '')
-      ).toUpperCase();
-      return parts.every(function (w) { return blob.indexOf(w) !== -1; });
-    });
-    list = list.slice(0, 80);
+    var list = catalogo.filter(function (p) {
+      if (filtroTipo && p.tipo_almacen !== filtroTipo) return false;
+      var blob = (p.codigo + ' ' + p.codigo_fabrica + ' ' + p.descripcion + ' ' + p.linea).toLowerCase();
+      return blob.indexOf(q) !== -1;
+    }).slice(0, 40);
+
     if (!list.length) {
-      $('vResults').innerHTML = '<p class="v-muted">Sin resultados.</p>';
+      box.innerHTML = '<p class="muted">Sin resultados</p>';
       return;
     }
-    $('vResults').innerHTML = list.map(function (p) {
+    box.innerHTML = list.map(function (p) {
       return (
-        '<div class="v-item" data-cod="' + escapeAttr(p.codigo) + '">' +
-        '<div class="cod">' + escapeHtml(p.codigo) + '</div>' +
-        '<div class="desc">' + escapeHtml(p.descripcion) +
-        '<div class="meta">' + escapeHtml(p.linea || '-') +
-        (p.tipo_almacen ? ' · ' + p.tipo_almacen : '') +
-        ' · factor ' + p.factor_empaque + '</div></div></div>'
+        '<button type="button" class="result-item" data-codigo="' + escapeHtml(p.codigo) + '">' +
+          '<div class="ri-name">' + escapeHtml(p.descripcion) + '</div>' +
+          '<div class="ri-meta">Cód: ' + escapeHtml(p.codigo) +
+            (p.codigo_fabrica ? ' · Fáb: ' + escapeHtml(p.codigo_fabrica) : '') +
+            (p.tipo_almacen ? ' · ' + escapeHtml(p.tipo_almacen) : '') +
+            (p.linea ? ' · ' + escapeHtml(p.linea) : '') +
+          '</div>' +
+        '</button>'
       );
     }).join('');
-  }
-
-  function escapeHtml(s) {
-    return String(s || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  function escapeAttr(s) {
-    return escapeHtml(s).replace(/'/g, '&#39;');
   }
 
   function seleccionar(codigo) {
     selected = catalogo.find(function (p) { return p.codigo === codigo; }) || null;
     if (!selected) return;
-    $('vQtyCard').hidden = false;
-    $('vProdSel').innerHTML =
-      '<strong>' + escapeHtml(selected.codigo) + '</strong> · ' +
-      escapeHtml(selected.descripcion);
-    $('vFactor').textContent = '×' + selected.factor_empaque;
+    $('vProductoCard').classList.remove('hidden');
+    $('vProdName').textContent = selected.descripcion;
+    $('vProdCodes').textContent =
+      'Cód: ' + selected.codigo +
+      ' · Cód. Fábrica: ' + (selected.codigo_fabrica || '—') +
+      (selected.linea ? ' · ' + selected.linea : '');
+    $('vFactor').textContent = 'Factor empaque: ×' + selected.factor_empaque +
+      (selected.unidad_ref ? ' · UM: ' + selected.unidad_ref : '');
     $('vCajas').value = '0';
     $('vUnidades').value = '0';
-    $('vCajas').focus();
+    $('vResults').innerHTML = '';
+    if ($('vSearch')) $('vSearch').value = '';
   }
 
   function renderPedido() {
-    const list = $('vPedList');
-    $('vPedCount').textContent = String(pedido.length);
-    let tc = 0, tu = 0;
-    pedido.forEach(function (p) {
-      tc += Number(p.cajas) || 0;
-      tu += Number(p.unidades) || 0;
-    });
-    $('vPedTotales').textContent = 'Cajas ' + tc + ' · Unidades ' + tu;
+    var box = $('vPedidoList');
     if (!pedido.length) {
-      list.innerHTML = '<p class="v-muted">Aún no hay productos.</p>';
-      return;
+      box.innerHTML = '<p class="muted">Aún no hay productos.</p>';
+    } else {
+      box.innerHTML = pedido.map(function (x, i) {
+        return (
+          '<div class="pedido-item">' +
+            '<div class="pi-info">' +
+              '<div class="pi-name">' + escapeHtml(x.descripcion) + '</div>' +
+              '<div class="pi-qty">' + escapeHtml(x.codigo) + ' · ' + x.cajas + ' cajas · ' + x.unidades + ' unid.</div>' +
+            '</div>' +
+            '<button type="button" class="pi-del" data-idx="' + i + '" title="Quitar">✕</button>' +
+          '</div>'
+        );
+      }).join('');
     }
-    list.innerHTML = pedido.map(function (p, i) {
-      return (
-        '<div class="v-ped-row">' +
-        '<div><strong>' + escapeHtml(p.codigo) + '</strong><br><span class="v-muted">' +
-        escapeHtml(p.descripcion) + '</span></div>' +
-        '<div>' + p.cajas + ' cj / ' + p.unidades + ' u</div>' +
-        '<button type="button" data-del="' + i + '" title="Quitar">🗑</button>' +
-        '</div>'
-      );
-    }).join('');
+    var tc = 0, tu = 0;
+    pedido.forEach(function (x) { tc += x.cajas; tu += x.unidades; });
+    $('vTotales').textContent = tc + ' cajas · ' + tu + ' unidades · ' + pedido.length + ' ítems';
   }
 
-  function agregarAlPedido() {
+  function agregar() {
     if (!selected) {
-      toast('Selecciona un producto.', true);
+      toast('Elige un producto', true);
       return;
     }
-    const cajas = parseInt($('vCajas').value, 10) || 0;
-    const unidades = parseInt($('vUnidades').value, 10) || 0;
-    if (cajas + unidades <= 0) {
-      toast('Indica cantidad.', true);
+    var cajas = Math.max(0, parseInt($('vCajas').value, 10) || 0);
+    var unidades = Math.max(0, parseInt($('vUnidades').value, 10) || 0);
+    if (cajas === 0 && unidades === 0) {
+      toast('Indica cajas o unidades', true);
       return;
     }
-    const ex = pedido.find(function (x) { return x.codigo === selected.codigo; });
+    var ex = pedido.find(function (x) { return x.codigo === selected.codigo; });
     if (ex) {
       ex.cajas += cajas;
       ex.unidades += unidades;
@@ -239,231 +227,179 @@
         unidades: unidades
       });
     }
-    try { localStorage.setItem(PED_KEY, JSON.stringify(pedido)); } catch (e) {}
-    renderPedido();
     toast('Agregado: ' + selected.codigo);
-    $('vCajas').value = '0';
-    $('vUnidades').value = '0';
-  }
-
-  // Misma auth que inventario: 400 → 400@iem.local + password de Auth
-  const AUTH_EMAIL_DOMAIN = 'iem.local';
-
-  async function login() {
-    const codigo = String($('vCodigo').value || '').trim().toLowerCase();
-    const clave = String($('vClave').value || '').trim();
-    if (!codigo || !clave) {
-      $('vLoginHint').textContent = 'Completa código y clave.';
-      return;
-    }
-    if (!sb) {
-      $('vLoginHint').textContent = 'Falta config de Supabase.';
-      return;
-    }
-    $('vLoginHint').textContent = 'Validando…';
-    try {
-      const email = codigo + '@' + AUTH_EMAIL_DOMAIN;
-      const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
-        email: email,
-        password: clave
-      });
-      if (authErr) throw authErr;
-      if (!authData || !authData.session || !authData.user) {
-        throw new Error('Sin sesión');
-      }
-
-      const uid = authData.user.id;
-      const { data: perfil, error: perfilErr } = await sb
-        .from('perfiles')
-        .select('usuario, nombre, rol, activo')
-        .eq('id', uid)
-        .maybeSingle();
-      if (perfilErr) throw perfilErr;
-      if (!perfil) {
-        await sb.auth.signOut();
-        $('vLoginHint').textContent = 'Usuario sin perfil. Pide alta al admin.';
-        return;
-      }
-      if (perfil.activo === false) {
-        await sb.auth.signOut();
-        $('vLoginHint').textContent = 'Usuario desactivado.';
-        return;
-      }
-      const rol = String(perfil.rol || '').toLowerCase();
-      if (rol !== 'vendedor') {
-        await sb.auth.signOut();
-        $('vLoginHint').textContent = 'Este acceso es solo para rol vendedor.';
-        return;
-      }
-
-      sesion = {
-        codigo: String(perfil.usuario || codigo),
-        nombre: perfil.nombre || perfil.usuario || codigo,
-        ruta: '',
-        celular: '',
-        userId: uid
-      };
-      try { localStorage.setItem(SES_KEY, JSON.stringify(sesion)); } catch (e) {}
-      entrarApp();
-    } catch (e) {
-      console.error(e);
-      const msg = String((e && e.message) || e || '');
-      if (/invalid login|invalid credentials|email/i.test(msg)) {
-        $('vLoginHint').textContent = 'Usuario o clave incorrectos.';
-      } else {
-        $('vLoginHint').textContent = 'Error: ' + msg;
-      }
-    }
-  }
-
-  function entrarApp() {
-    $('vLoginCard').hidden = true;
-    $('vApp').hidden = false;
-    $('vLogoutBtn').hidden = false;
-    $('vUserLabel').textContent = (sesion.nombre || sesion.codigo) +
-      (sesion.ruta ? ' · Ruta ' + sesion.ruta : '');
-    try {
-      pedido = JSON.parse(localStorage.getItem(PED_KEY) || '[]') || [];
-    } catch (e) { pedido = []; }
+    selected = null;
+    $('vProductoCard').classList.add('hidden');
     renderPedido();
-    cargarCatalogo();
   }
 
-  function logout(silent) {
-    sesion = null;
-    try {
-      localStorage.removeItem(SES_KEY);
-      if (!silent) localStorage.removeItem(PED_KEY);
-    } catch (e) {}
-    try { if (sb) sb.auth.signOut(); } catch (e2) {}
-    if (!silent) pedido = [];
-    catalogo = [];
-    $('vApp').hidden = true;
-    $('vLoginCard').hidden = false;
-    $('vLogoutBtn').hidden = true;
-    $('vUserLabel').textContent = 'Vendedor';
-  }
-
-  async function enviarSugerencia() {
-    if (!sesion) return;
+  async function enviar() {
     if (!pedido.length) {
-      toast('El pedido está vacío.', true);
+      toast('El pedido está vacío', true);
       return;
     }
-    if (!sb) {
-      toast('Sin Supabase.', true);
+    if (!supabaseClient || !perfil) {
+      toast('Sin sesión', true);
       return;
     }
-    let tc = 0, tu = 0;
-    pedido.forEach(function (p) {
-      tc += Number(p.cajas) || 0;
-      tu += Number(p.unidades) || 0;
-    });
-    const payload = {
-      vendedor_codigo: sesion.codigo,
-      vendedor_nombre: sesion.nombre,
-      ruta: sesion.ruta || null,
+    var tc = 0, tu = 0;
+    pedido.forEach(function (x) { tc += x.cajas; tu += x.unidades; });
+    var payload = {
+      vendedor_codigo: perfil.usuario,
+      vendedor_nombre: perfil.nombre || perfil.usuario,
+      ruta: perfil.ruta || null,
       items: pedido,
       total_cajas: tc,
       total_unidades: tu,
-      notas: String($('vNotas').value || '').trim() || null,
+      notas: ($('vNotas') && $('vNotas').value) || null,
       estado: 'pendiente'
     };
     try {
-      const { error } = await sb.from('pedidos_sugeridos').insert(payload);
+      var { error } = await supabaseClient.from('pedidos_sugeridos').insert(payload);
       if (error) throw error;
-      toast('Sugerencia enviada a IEM.');
+      toast('Sugerencia enviada');
       pedido = [];
-      try { localStorage.removeItem(PED_KEY); } catch (e) {}
+      if ($('vNotas')) $('vNotas').value = '';
       renderPedido();
-      $('vNotas').value = '';
     } catch (e) {
       console.error(e);
-      toast('No se pudo enviar: ' + (e.message || e) +
-        ' (¿tabla pedidos_sugeridos?)', true);
+      toast('No se pudo enviar: ' + (e.message || e) + ' (¿ejecutaste el SQL?)', true);
     }
   }
 
-  // Eventos
-  $('vLoginBtn').addEventListener('click', login);
-  $('vClave').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') login();
-  });
-  $('vLogoutBtn').addEventListener('click', logout);
-  $('vSearch').addEventListener('input', function () {
-    clearTimeout(searchTimer);
-    const q = $('vSearch').value;
-    searchTimer = setTimeout(function () { buscar(q); }, 180);
-  });
-  $('vResults').addEventListener('click', function (e) {
-    const row = e.target.closest && e.target.closest('.v-item');
-    if (!row) return;
-    seleccionar(row.getAttribute('data-cod'));
-  });
-  document.querySelectorAll('.v-chip').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('.v-chip').forEach(function (b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      filtroTipo = (btn.getAttribute('data-tipo') || '').toUpperCase();
-      buscar($('vSearch').value);
-    });
-  });
-  $('vAddBtn').addEventListener('click', agregarAlPedido);
-  $('vClearBtn').addEventListener('click', function () {
-    if (!pedido.length) return;
-    if (!confirm('¿Vaciar el pedido?')) return;
-    pedido = [];
-    try { localStorage.removeItem(PED_KEY); } catch (e) {}
-    renderPedido();
-  });
-  $('vPedList').addEventListener('click', function (e) {
-    const btn = e.target.closest && e.target.closest('[data-del]');
-    if (!btn) return;
-    const i = parseInt(btn.getAttribute('data-del'), 10);
-    if (!isNaN(i)) {
-      pedido.splice(i, 1);
-      try { localStorage.setItem(PED_KEY, JSON.stringify(pedido)); } catch (err) {}
-      renderPedido();
-    }
-  });
-  $('vSendBtn').addEventListener('click', enviarSugerencia);
+  function mostrarLogin() {
+    $('loginScreen').classList.remove('hidden');
+    $('appScreen').classList.add('hidden');
+    perfil = null;
+  }
 
-  // Restaurar sesión solo si Supabase aún tiene JWT válido
-  (async function restaurar() {
+  function mostrarApp() {
+    $('loginScreen').classList.add('hidden');
+    $('appScreen').classList.remove('hidden');
+    $('vWho').textContent = (perfil.nombre || perfil.usuario) + ' · ' + (perfil.usuario || '');
+  }
+
+  async function login() {
+    var user = String(($('vUser') && $('vUser').value) || '').trim();
+    var pass = String(($('vPass') && $('vPass').value) || '');
+    if (!user || !pass) {
+      toast('Usuario y clave requeridos', true);
+      return;
+    }
+    if (!supabaseClient) supabaseClient = initSupabase();
+    if (!supabaseClient) return;
+    $('vLoginBtn').disabled = true;
     try {
-      if (!sb) return;
-      const { data } = await sb.auth.getSession();
-      if (!data || !data.session) {
-        try { localStorage.removeItem(SES_KEY); } catch (e) {}
-        return;
-      }
-      const raw = localStorage.getItem(SES_KEY);
-      if (raw) {
-        sesion = JSON.parse(raw);
-        if (sesion && sesion.codigo) {
-          entrarApp();
-          return;
+      var email = user.indexOf('@') !== -1 ? user : (user + '@iem.local');
+      var { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+      if (error) throw error;
+      var uid = data.user && data.user.id;
+      var { data: perf, error: e2 } = await supabaseClient
+        .from('perfiles')
+        .select('usuario, nombre, rol, activo, ruta')
+        .eq('usuario', user)
+        .maybeSingle();
+      if (e2) throw e2;
+      if (!perf) {
+        // fallback by auth id if column exists
+        var r2 = await supabaseClient.from('perfiles').select('usuario, nombre, rol, activo, ruta').limit(20);
+        if (r2.data) {
+          perf = r2.data.find(function (x) {
+            return String(x.usuario || '').toLowerCase() === user.toLowerCase();
+          });
         }
       }
-      // Hay sesión Auth pero no meta local: rearmar desde perfiles
-      const uid = data.session.user.id;
-      const { data: perfil } = await sb.from('perfiles')
-        .select('usuario, nombre, rol, activo')
-        .eq('id', uid)
+      if (!perf) throw new Error('No hay perfil para este usuario');
+      if (String(perf.rol || '').toLowerCase() !== 'vendedor') {
+        await supabaseClient.auth.signOut();
+        throw new Error('Solo rol vendedor');
+      }
+      if (perf.activo === false) {
+        await supabaseClient.auth.signOut();
+        throw new Error('Usuario inactivo');
+      }
+      perfil = perf;
+      mostrarApp();
+      await cargarCatalogo();
+    } catch (e) {
+      console.error(e);
+      var msg = e.message || String(e);
+      if (/invalid login|invalid credentials|email/i.test(msg)) {
+        msg = 'Usuario o clave incorrectos';
+      }
+      toast(msg, true);
+    } finally {
+      $('vLoginBtn').disabled = false;
+    }
+  }
+
+  async function logout() {
+    try { if (supabaseClient) await supabaseClient.auth.signOut(); } catch (e) {}
+    catalogo = [];
+    pedido = [];
+    selected = null;
+    mostrarLogin();
+  }
+
+  function bind() {
+    $('vLoginBtn').addEventListener('click', login);
+    $('vPass').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') login();
+    });
+    $('vLogoutBtn').addEventListener('click', logout);
+    $('vSearch').addEventListener('input', renderResults);
+    $('vResults').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-codigo]');
+      if (btn) seleccionar(btn.getAttribute('data-codigo'));
+    });
+    $('vAddBtn').addEventListener('click', agregar);
+    $('vClearProd').addEventListener('click', function () {
+      selected = null;
+      $('vProductoCard').classList.add('hidden');
+    });
+    $('vPedidoList').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-idx]');
+      if (!b) return;
+      var i = parseInt(b.getAttribute('data-idx'), 10);
+      if (!isNaN(i)) {
+        pedido.splice(i, 1);
+        renderPedido();
+      }
+    });
+    $('vSendBtn').addEventListener('click', enviar);
+    document.querySelectorAll('#vFiltros .filtro-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('#vFiltros .filtro-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        filtroTipo = (btn.getAttribute('data-tipo') || '').toUpperCase();
+        renderResults();
+      });
+    });
+  }
+
+  async function tryRestore() {
+    supabaseClient = initSupabase();
+    if (!supabaseClient) return;
+    var { data } = await supabaseClient.auth.getSession();
+    if (!data || !data.session) return;
+    try {
+      var email = (data.session.user && data.session.user.email) || '';
+      var user = email.replace(/@iem\.local$/i, '');
+      var { data: perf } = await supabaseClient
+        .from('perfiles')
+        .select('usuario, nombre, rol, activo, ruta')
+        .eq('usuario', user)
         .maybeSingle();
-      if (perfil && String(perfil.rol || '').toLowerCase() === 'vendedor' && perfil.activo !== false) {
-        sesion = {
-          codigo: String(perfil.usuario || ''),
-          nombre: perfil.nombre || perfil.usuario || '',
-          ruta: '',
-          celular: '',
-          userId: uid
-        };
-        try { localStorage.setItem(SES_KEY, JSON.stringify(sesion)); } catch (e) {}
-        entrarApp();
+      if (perf && String(perf.rol || '').toLowerCase() === 'vendedor' && perf.activo !== false) {
+        perfil = perf;
+        mostrarApp();
+        await cargarCatalogo();
       }
     } catch (e) {
-      console.warn('restaurar', e);
+      console.warn(e);
     }
-  })();
+  }
+
+  bind();
+  tryRestore();
 })();
