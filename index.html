@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#1e293b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="IEM GROUP — Sugerencia de pedidos para vendedores">
@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=1.5">
+  <link rel="stylesheet" href="vendedores.css?v=2.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -25,7 +25,6 @@
     <button type="button" class="v-btn-ghost" id="vLogoutBtn" hidden>Salir</button>
   </header>
 
-  <!-- LOGIN -->
   <section class="v-card" id="vLoginCard">
     <h1>Ingreso vendedor</h1>
     <p class="v-muted">Mismo usuario y clave del sistema IEM (rol vendedor).</p>
@@ -39,10 +38,9 @@
     <p class="v-hint" id="vLoginHint"></p>
   </section>
 
-  <!-- APP -->
-  <main id="vApp" hidden>
-    <section class="v-card v-search">
-      <input type="search" id="vSearch" placeholder="Código, nombre, marca..." enterkeyhint="search" autocomplete="off">
+  <div id="vApp" hidden>
+    <section class="v-card">
+      <input type="search" id="vSearch" placeholder="Código, nombre, marca..." autocomplete="off">
       <div class="v-chips">
         <button type="button" class="v-chip active" data-tipo="">Todos</button>
         <button type="button" class="v-chip" data-tipo="FRIOS">Fríos</button>
@@ -79,13 +77,16 @@
         <textarea id="vNotas" rows="2" placeholder="Cliente, horario, observaciones..."></textarea>
       </label>
     </section>
-  </main>
+  </div>
 
-  <div class="v-toast" id="vToast" hidden></div>
-  <script src="vendedores.js?v=1.1"></script>
+  <div id="vToast" class="v-toast" hidden></div>
+
+  <script src="app-vendedores.js?v=2.0"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(function () {});
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
     }
   </script>
 </body>
