@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=2.7">
+  <link rel="stylesheet" href="vendedores.css?v=2.8">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -42,9 +42,14 @@
   <!-- APP -->
   <div id="appScreen" class="container hidden">
     <div class="header-bar">
-      <div class="who" id="vWho">—</div>
-      <button type="button" class="theme-toggle" id="themeToggleBtnApp" title="Cambiar tema">🌙</button>
-      <button type="button" class="btn btn-outline" id="vLogoutBtn">Salir</button>
+      <div class="header-left">
+        <img class="header-logo" src="logo-iem.png" alt="IEM" width="48" height="40">
+        <div class="who" id="vWho">—</div>
+      </div>
+      <div class="header-right">
+        <button type="button" class="theme-toggle" id="themeToggleBtnApp" title="Cambiar tema">🌙</button>
+        <button type="button" class="btn btn-outline" id="vLogoutBtn">Salir</button>
+      </div>
     </div>
 
     <div class="card">
@@ -96,11 +101,11 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=2.7"></script>
-  <script src="app-vendedores.js?v=2.7"></script>
+  <script src="config.js?v=2.8"></script>
+  <script src="app-vendedores.js?v=2.8"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=2.7').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=2.8').catch(function () {});
     }
   </script>
 </body>

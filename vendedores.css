@@ -193,3 +193,13 @@ body.light-theme .pedido-item { background: #fafafa; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); font-size: 0.85rem; }
 textarea { min-height: 64px; }
+
+.header-left { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+.header-right { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.header-logo {
+  width: 48px; height: auto; max-height: 40px; object-fit: contain;
+  background: #fff; border-radius: 8px; padding: 3px 5px;
+  border: 1px solid rgba(255,255,255,0.35);
+}
+body:not(.light-theme) .header-logo { border-color: var(--border); }
+.header-bar .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
