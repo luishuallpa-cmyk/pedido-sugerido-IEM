@@ -51,10 +51,23 @@
   }
 
   function esPromOCbm(p) {
-    var d = String(p.descripcion || '').toUpperCase();
-    var c = String(p.codigo || '');
-    if (/\bPROM\b|\bPROM\.|PROM\s|\bCBM\b|COMBO\b/.test(d)) return true;
-    if (/^9\d{3}$/.test(c) && /PROM|CBM|COMBO/.test(d)) return true;
+    // Vendedores NO deben ver ni pedir PROM / CBM / COMBO / packs promo
+    function norm(s) {
+      return String(s || '').toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+    var d = norm(p.descripcion);
+    var c = norm(p.codigo);
+    var f = norm(p.codigo_fabrica);
+    var linea = norm(p.linea);
+    var marca = norm(p.marca);
+    var blob = d + ' ' + c + ' ' + f + ' ' + linea + ' ' + marca;
+    if (/\bPROM\b|\bPROMO\b|\bPROMOS\b|\bPROMOCION\b|\bPROM\.|PROM\s/.test(blob)) return true;
+    if (/\bCBM\b|\bCOMBO\b|PACK\s*PROMO|PACK\s*PROM/.test(blob)) return true;
+    if (/PROM|CBM|COMBO/.test(c) || /PROM|CBM|COMBO/.test(f)) return true;
+    if (/^9\d{3,}$/.test(c) && /PROM|CBM|COMBO|PACK/.test(d)) return true;
+    if (/^900\d+/.test(c)) return true;
+    if (/PROMOS?\s*\/\s*COMBOS?|PROMOS|COMBOS/.test(linea)) return true;
     return false;
   }
 
