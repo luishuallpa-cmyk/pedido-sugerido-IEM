@@ -278,3 +278,34 @@ body:not(.light-theme) .header-logo {
   border-color: var(--border);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
+
+
+/* —— PC / tablet: vista más ancha y logos más grandes —— */
+@media (min-width: 641px) {
+  .container { max-width: 720px; }
+  .login-card { max-width: 440px; }
+  .login-logo img {
+    height: 96px !important;
+    max-width: 260px !important;
+  }
+  .header-logo {
+    width: 72px !important;
+    height: 60px !important;
+    min-width: 72px !important;
+    padding: 6px 8px !important;
+    border-radius: 12px !important;
+  }
+  .header-bar .who { font-size: 1.05rem; }
+  .result-item .ri-img,
+  .result-item .ri-img-placeholder {
+    width: 56px; height: 56px;
+  }
+  .producto-card .pc-img {
+    width: 80px; height: 80px;
+  }
+  .result-list { max-height: 50vh; }
+}
+
+@media (min-width: 1024px) {
+  .container { max-width: 900px; }
+}
