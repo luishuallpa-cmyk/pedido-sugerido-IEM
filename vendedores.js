@@ -70,16 +70,25 @@
     var o = {
       codigo: String(p.codigo || '').trim(),
       codigo_fabrica: p.codigo_fabrica ? String(p.codigo_fabrica) : '',
+      codigo_barras: p.codigo_barras ? String(p.codigo_barras) : '',
       descripcion: String(p.descripcion || '').trim(),
       unidad_ref: p.unidad_ref || '',
       factor_empaque: Number(p.factor_empaque) > 0 ? Number(p.factor_empaque) : 1,
       linea: p.linea ? String(p.linea) : '',
       marca: p.marca ? String(p.marca) : '',
-      tipo_almacen: inferirTipo(p),
+      tipo_almacen: normalizarTipo(p.tipo_almacen) || inferirTipo(p),
+      imagen_url: p.imagen_url ? String(p.imagen_url) : '',
       activo: p.activo !== false
     };
-    o._sb = (o.codigo + '\u0001' + o.codigo_fabrica + '\u0001' + o.descripcion + '\u0001' + o.linea + '\u0001' + o.marca).toLowerCase();
+    o._sb = (o.codigo + '\u0001' + o.codigo_fabrica + '\u0001' + o.codigo_barras + '\u0001' + o.descripcion + '\u0001' + o.linea + '\u0001' + o.marca).toLowerCase();
     return o;
+  }
+
+  function imgHtml(url, cls) {
+    if (!url) {
+      return '<span class="' + (cls || 'ri-img') + ' ri-img-placeholder" aria-hidden="true">📦</span>';
+    }
+    return '<img class="' + (cls || 'ri-img') + '" src="' + escapeHtml(url) + '" alt="" loading="lazy" decoding="async" onerror="this.classList.add(\'ri-img-broken\');this.removeAttribute(\'src\');">';
   }
 
   function initSupabase() {
@@ -111,9 +120,18 @@
       while (true) {
         var { data, error } = await supabaseClient
           .from('productos')
-          .select('codigo,codigo_fabrica,descripcion,unidad_ref,factor_empaque,linea,marca,activo')
+          .select('codigo,codigo_fabrica,codigo_barras,descripcion,unidad_ref,factor_empaque,linea,marca,activo,tipo_almacen,imagen_url')
           .eq('activo', true)
           .range(from, from + page - 1);
+        // Si falta alguna columna nueva, reintentar sin ella
+        if (error && /imagen_url|tipo_almacen|codigo_barras/i.test(error.message || '')) {
+          var r2 = await supabaseClient
+            .from('productos')
+            .select('codigo,codigo_fabrica,descripcion,unidad_ref,factor_empaque,linea,marca,activo')
+            .eq('activo', true)
+            .range(from, from + page - 1);
+          data = r2.data; error = r2.error;
+        }
         if (error) throw error;
         if (!data || !data.length) break;
         all = all.concat(data);
@@ -177,11 +195,14 @@
     box.innerHTML = list.map(function (p) {
       return (
         '<button type="button" class="result-item" data-codigo="' + escapeHtml(p.codigo) + '">' +
-          '<div class="ri-name">' + escapeHtml(p.descripcion) + '</div>' +
-          '<div class="ri-meta">Cód: ' + escapeHtml(p.codigo) +
-            (p.codigo_fabrica ? ' · Fáb: ' + escapeHtml(p.codigo_fabrica) : '') +
-            (p.tipo_almacen ? ' · ' + escapeHtml(p.tipo_almacen) : '') +
-            (p.linea ? ' · ' + escapeHtml(p.linea) : '') +
+          imgHtml(p.imagen_url, 'ri-img') +
+          '<div class="ri-body">' +
+            '<div class="ri-name">' + escapeHtml(p.descripcion) + '</div>' +
+            '<div class="ri-meta">Cód: ' + escapeHtml(p.codigo) +
+              (p.codigo_fabrica ? ' · Fáb: ' + escapeHtml(p.codigo_fabrica) : '') +
+              (p.tipo_almacen ? ' · ' + escapeHtml(p.tipo_almacen) : '') +
+              (p.linea ? ' · ' + escapeHtml(p.linea) : '') +
+            '</div>' +
           '</div>' +
         '</button>'
       );
@@ -192,6 +213,17 @@
     selected = catalogo.find(function (p) { return p.codigo === codigo; }) || null;
     if (!selected) return;
     $('vProductoCard').classList.remove('hidden');
+    var imgEl = $('vProdImg');
+    if (imgEl) {
+      if (selected.imagen_url) {
+        imgEl.src = selected.imagen_url;
+        imgEl.style.display = '';
+        imgEl.onerror = function () { imgEl.style.display = 'none'; };
+      } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+      }
+    }
     $('vProdName').textContent = selected.descripcion;
     $('vProdCodes').textContent =
       'Cód: ' + selected.codigo +
@@ -213,6 +245,7 @@
       box.innerHTML = pedido.map(function (x, i) {
         return (
           '<div class="pedido-item">' +
+            imgHtml(x.imagen_url, 'pi-img') +
             '<div class="pi-info">' +
               '<div class="pi-name">' + escapeHtml(x.descripcion) + '</div>' +
               '<div class="pi-qty">' + escapeHtml(x.codigo) + ' · ' + x.cajas + ' cajas · ' + x.unidades + ' unid.</div>' +
@@ -250,6 +283,7 @@
         unidad_ref: selected.unidad_ref,
         factor: selected.factor_empaque,
         linea: selected.linea,
+        imagen_url: selected.imagen_url || '',
         cajas: cajas,
         unidades: unidades
       });
