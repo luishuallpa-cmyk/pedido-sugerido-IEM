@@ -543,40 +543,66 @@ body.modo-producto .producto-card {
   }
 }
 
-/* —— Escritorio: más espacio e imágenes grandes —— */
+/* —— Escritorio: aprovechar ancho e imágenes —— */
 @media (min-width: 901px) {
-  .container { max-width: 1100px; }
-  body { padding: 1.25rem 1.5rem; }
+  body {
+    padding: 1.25rem 1.75rem 1.5rem;
+  }
+  .container {
+    max-width: min(1400px, 96vw) !important;
+    width: 100%;
+  }
+
+  .header-bar {
+    padding: 0.65rem 1rem;
+    margin-bottom: 1rem;
+  }
 
   .layout-main {
     display: grid;
-    grid-template-columns: 1.15fr 0.95fr;
-    gap: 1rem;
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
     align-items: start;
-    margin-bottom: 0.9rem;
+    margin-bottom: 1rem;
+  }
+  /* Con producto visible: catálogo | ficha */
+  body.modo-producto .layout-main {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
   }
 
   #vCatalogCard {
     margin-bottom: 0;
+    width: 100%;
   }
 
+  /* Resultados en 2 columnas para usar el ancho */
   .result-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    max-height: min(68vh, 720px);
+    overflow-y: auto;
+  }
+  body.modo-producto .result-list {
+    grid-template-columns: 1fr;
     max-height: min(62vh, 640px);
   }
 
   .result-item {
-    padding: 0.7rem 0.85rem;
-    gap: 0.85rem;
+    padding: 0.75rem 0.9rem;
+    gap: 0.9rem;
+    min-height: 88px;
   }
   .result-item .ri-img,
   .result-item .ri-img-placeholder,
   .result-item .ri-img.ri-img-broken {
-    width: 72px;
-    height: 72px;
+    width: 80px;
+    height: 80px;
     border-radius: 12px;
   }
   .result-item .ri-name {
-    font-size: 0.95rem;
+    font-size: 0.98rem;
+    -webkit-line-clamp: 3;
   }
   .result-item .ri-meta {
     font-size: 0.8rem;
@@ -586,46 +612,80 @@ body.modo-producto .producto-card {
     position: sticky;
     top: 0.85rem;
     margin-bottom: 0;
-    padding: 1.15rem 1.25rem;
+    padding: 1.25rem 1.35rem;
+    width: 100%;
+  }
+  .producto-card:not(.hidden) {
+    display: block;
   }
   .producto-card .pc-top {
-    gap: 1rem;
+    gap: 1.1rem;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
   .producto-card .pc-img {
-    width: 120px;
-    height: 120px;
-    border-radius: 14px;
+    width: 160px;
+    height: 160px;
+    border-radius: 16px;
+  }
+  .producto-card .pc-text {
+    width: 100%;
   }
   .producto-card .pc-name {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
   .producto-card .pc-codes {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
+  }
+  .pc-actions {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+  .pc-actions .btn {
+    flex: 1;
+    min-width: 140px;
   }
 
   #vPedidoCard {
     max-width: 100%;
   }
+  .pedido-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
   .pedido-item .pi-img {
-    width: 52px;
-    height: 52px;
+    width: 56px;
+    height: 56px;
   }
 }
 
 @media (min-width: 1200px) {
-  .container { max-width: 1240px; }
-  .layout-main {
-    grid-template-columns: 1.25fr 1fr;
-    gap: 1.15rem;
+  .container {
+    max-width: min(1520px, 96vw) !important;
+  }
+  .result-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .result-item .ri-img,
   .result-item .ri-img-placeholder {
-    width: 84px;
-    height: 84px;
+    width: 96px;
+    height: 96px;
   }
   .producto-card .pc-img {
-    width: 140px;
-    height: 140px;
+    width: 180px;
+    height: 180px;
+  }
+}
+
+@media (min-width: 1500px) {
+  .result-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  body.modo-producto .result-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

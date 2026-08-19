@@ -1,12 +1,12 @@
 {
-  "name": "IEM Pedidos Vendedor",
-  "short_name": "IEM Pedidos",
-  "description": "Sugerencia de pedidos para vendedores IEM GROUP",
+  "name": "IEM Ventas · Pedidos",
+  "short_name": "IEM Ventas",
+  "description": "Pedidos sugeridos · IEM GROUP Ventas",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#1e293b",
+  "background_color": "#0A784C",
+  "theme_color": "#0A784C",
   "orientation": "portrait-primary",
   "icons": [
     {

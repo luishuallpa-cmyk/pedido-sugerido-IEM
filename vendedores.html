@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=3.6">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.9">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3.9">
+  <link rel="stylesheet" href="vendedores.css?v=3.9">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -26,7 +26,7 @@
     <button type="button" class="theme-toggle" id="themeToggleBtn" title="Cambiar tema">🌙</button>
     <div class="card login-card">
       <div class="login-logo">
-        <img src="./logo-iem.png" alt="IEM GROUP · Laive" class="logo-img" width="160" height="76" decoding="async">
+        <img src="./logo-iem-ventas.png" alt="IEM GROUP · Laive" class="logo-img" width="160" height="76" decoding="async">
       </div>
       <h1>Pedidos vendedor</h1>
       <p class="sub">Sugerencia de pedido · IEM GROUP</p>
@@ -47,7 +47,7 @@
   <div id="appScreen" class="container hidden">
     <div class="header-bar">
       <div class="header-left">
-        <img class="header-logo" src="./logo-iem.png" alt="IEM GROUP" width="48" height="40" decoding="async">
+        <img class="header-logo" src="./logo-iem-ventas.png" alt="IEM GROUP" width="48" height="40" decoding="async">
         <div class="who" id="vWho">—</div>
       </div>
       <div class="header-right">
@@ -119,11 +119,11 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=3.6"></script>
-  <script src="app-vendedores.js?v=3.6"></script>
+  <script src="config.js?v=3.9"></script>
+  <script src="app-vendedores.js?v=3.9"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=3.6').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=3.9').catch(function () {});
     }
   </script>
 </body>

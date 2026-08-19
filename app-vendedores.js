@@ -407,10 +407,12 @@
     $('appScreen').classList.remove('hidden');
     var _nom = String((perfil && perfil.nombre) || '').trim();
     var _usr = String((perfil && perfil.usuario) || '').trim();
+    var _rol = String((perfil && perfil.rol) || '').toLowerCase();
+    var _et = _rol === 'admin' ? 'Admin' : 'Vendedor';
     if (_nom && _usr && _nom.toLowerCase() !== _usr.toLowerCase()) {
-      $('vWho').textContent = _nom + ' · ' + _usr;
+      $('vWho').textContent = _et + ' · ' + _nom + ' · ' + _usr;
     } else {
-      $('vWho').textContent = _usr ? ('Vendedor ' + _usr) : 'Vendedor';
+      $('vWho').textContent = _usr ? (_et + ' ' + _usr) : _et;
     }
   }
 
@@ -445,9 +447,10 @@
         }
       }
       if (!perf) throw new Error('No hay perfil para este usuario');
-      if (String(perf.rol || '').toLowerCase() !== 'vendedor') {
+      var rol = String(perf.rol || '').toLowerCase();
+      if (rol !== 'vendedor' && rol !== 'admin') {
         await supabaseClient.auth.signOut();
-        throw new Error('Solo rol vendedor');
+        throw new Error('Solo rol vendedor o administrador');
       }
       if (perf.activo === false) {
         await supabaseClient.auth.signOut();
@@ -554,7 +557,8 @@
         .select('usuario, nombre, rol, activo')
         .eq('usuario', user)
         .maybeSingle();
-      if (perf && String(perf.rol || '').toLowerCase() === 'vendedor' && perf.activo !== false) {
+      var rolR = String((perf && perf.rol) || '').toLowerCase();
+      if (perf && (rolR === 'vendedor' || rolR === 'admin') && perf.activo !== false) {
         perfil = perf;
         mostrarApp();
         await cargarCatalogo();
