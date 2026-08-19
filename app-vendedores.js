@@ -406,6 +406,18 @@
     renderPedido();
   }
 
+  function genPedidoId() {
+    try {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    } catch (e) {}
+    // fallback UUID v4
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0;
+      var v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   async function enviar() {
     if (!pedido.length) {
       toast('El pedido está vacío', true);
@@ -418,49 +430,118 @@
     var tc = 0, tu = 0;
     pedido.forEach(function (x) { tc += x.cajas; tu += x.unidades; });
     var notasVal = ($('vNotas') && $('vNotas').value) || '';
+    var pedidoId = genPedidoId();
+    var usr = String(perfil.usuario || perfil.nombre || '').trim();
+    if (!usr) {
+      toast('No se identificó el usuario de la sesión', true);
+      return;
+    }
+    var nom = String(perfil.nombre || perfil.usuario || usr).trim();
+
+    // La tabla en Supabase puede tener "usuario" y/o "vendedor_codigo" (esquemas viejos/nuevos)
     var payload = {
-      vendedor_codigo: perfil.usuario,
-      vendedor_nombre: perfil.nombre || perfil.usuario,
+      id: pedidoId,
+      usuario: usr,
+      vendedor_codigo: usr,
+      vendedor_nombre: nom,
       items: pedido,
       total_cajas: tc,
       total_unidades: tu,
       estado: 'pendiente'
     };
-    // Columnas opcionales (si el SQL viejo no las tiene, reintentamos sin ellas)
     if (notasVal) payload.notas = notasVal;
-    if (perfil && (perfil.ruta || perfil.Ruta)) payload.ruta = perfil.ruta || perfil.Ruta;
+    if (perfil.ruta || perfil.Ruta) payload.ruta = perfil.ruta || perfil.Ruta;
+
+    function sinCols(obj, cols) {
+      var o = Object.assign({}, obj);
+      (cols || []).forEach(function (c) { delete o[c]; });
+      return o;
+    }
 
     try {
       var res = await supabaseClient.from('pedidos_sugeridos').insert(payload);
       var error = res.error;
-      // Si falta columna en schema cache, reintentar solo con lo mínimo
-      if (error && /column|schema cache|notas|ruta|vendedor_/i.test(String(error.message || error))) {
-        console.warn('Insert con columnas extra falló, reintento mínimo:', error.message || error);
-        var minimo = {
+      var intentos = 0;
+      while (error && intentos < 6) {
+        intentos++;
+        var msg = String(error.message || error || '');
+        console.warn('Insert pedidos_sugeridos intento ' + intentos + ':', msg);
+
+        if (/null value in column "usuario"|column "usuario"/i.test(msg)) {
+          payload.usuario = usr;
+          res = await supabaseClient.from('pedidos_sugeridos').insert(payload);
+          error = res.error;
+          continue;
+        }
+        if (/null value in column "id"/i.test(msg)) {
+          payload.id = genPedidoId();
+          res = await supabaseClient.from('pedidos_sugeridos').insert(payload);
+          error = res.error;
+          continue;
+        }
+        if (/invalid input syntax|uuid|type.*id/i.test(msg) && payload.id) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['id']));
+          error = res.error;
+          continue;
+        }
+        if (/column.*notas|schema cache.*notas/i.test(msg)) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['notas']));
+          error = res.error;
+          continue;
+        }
+        if (/column.*ruta|schema cache.*ruta/i.test(msg)) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['ruta', 'notas']));
+          error = res.error;
+          continue;
+        }
+        if (/column.*vendedor_nombre|schema cache.*vendedor_nombre/i.test(msg)) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['vendedor_nombre', 'ruta', 'notas']));
+          error = res.error;
+          continue;
+        }
+        if (/column.*vendedor_codigo|schema cache.*vendedor_codigo/i.test(msg)) {
+          var pUser = sinCols(payload, ['vendedor_codigo', 'vendedor_nombre', 'ruta', 'notas']);
+          pUser.usuario = usr;
+          res = await supabaseClient.from('pedidos_sugeridos').insert(pUser);
+          error = res.error;
+          continue;
+        }
+        if (/column.*usuario|schema cache.*usuario/i.test(msg) && !/null value/i.test(msg)) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['usuario']));
+          error = res.error;
+          continue;
+        }
+        // genérico: payload mínimo con usuario + items
+        res = await supabaseClient.from('pedidos_sugeridos').insert({
+          id: genPedidoId(),
+          usuario: usr,
+          vendedor_codigo: usr,
           items: pedido,
           total_cajas: tc,
           total_unidades: tu,
           estado: 'pendiente'
-        };
-        // Intentar con vendedor si existe
-        minimo.vendedor_codigo = perfil.usuario;
-        minimo.vendedor_nombre = perfil.nombre || perfil.usuario;
-        res = await supabaseClient.from('pedidos_sugeridos').insert(minimo);
+        });
         error = res.error;
-        if (error && /column|schema cache|vendedor_/i.test(String(error.message || error))) {
-          var soloItems = { items: pedido, total_cajas: tc, total_unidades: tu };
-          res = await supabaseClient.from('pedidos_sugeridos').insert(soloItems);
+        if (error) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert({
+            usuario: usr,
+            items: pedido,
+            total_cajas: tc,
+            total_unidades: tu
+          });
           error = res.error;
         }
+        break;
       }
+
       if (error) throw error;
-      toast('Sugerencia enviada');
+      toast('Sugerencia enviada a almacén');
       pedido = [];
       if ($('vNotas')) $('vNotas').value = '';
       renderPedido();
     } catch (e) {
       console.error(e);
-      toast('No se pudo enviar: ' + (e.message || e) + ' — ejecuta supabase-vendedores.sql en Supabase', true);
+      toast('No se pudo enviar: ' + (e.message || e), true);
     }
   }
 
