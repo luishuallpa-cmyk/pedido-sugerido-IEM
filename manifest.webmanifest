@@ -1,16 +1,13 @@
 {
-  "name": "IEM GROUP · Inventario",
-  "short_name": "IEM Inventario",
-  "description": "Conteo de inventario físico, pedidos y catálogo IEM GROUP",
-  "start_url": "./index.html",
+  "name": "IEM Ventas · Pedidos",
+  "short_name": "IEM Ventas",
+  "description": "Pedidos sugeridos · IEM GROUP Ventas",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "background_color": "#0A784C",
+  "theme_color": "#0A784C",
   "orientation": "portrait-primary",
-  "background_color": "#1a233e",
-  "theme_color": "#1a233e",
-  "lang": "es",
-  "dir": "ltr",
-  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "icon-192.png",
@@ -29,12 +26,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
     }
   ]
 }
