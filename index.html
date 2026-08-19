@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=3.2">
+  <link rel="stylesheet" href="vendedores.css?v=3.3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -53,13 +53,17 @@
     </div>
 
     <div class="card">
+      <div class="card-title">
+        <h2>Catálogo</h2>
+        <span class="badge">Sin PROM / CMB</span>
+      </div>
       <div class="filtros" id="vFiltros">
         <button type="button" class="filtro-btn active" data-tipo="">Todos</button>
         <button type="button" class="filtro-btn" data-tipo="FRIOS">Fríos</button>
         <button type="button" class="filtro-btn" data-tipo="SECOS">Secos</button>
       </div>
       <div class="search-row">
-        <input type="search" id="vSearch" placeholder="Código o nombre…" autocomplete="off" enterkeyhint="search">
+        <input type="search" id="vSearch" placeholder="Código, fábrica o nombre…" autocomplete="off" enterkeyhint="search">
       </div>
       <div class="catalog-count" id="vCatalogCount">Catálogo: —</div>
       <div class="result-list" id="vResults"></div>
@@ -91,26 +95,29 @@
     </div>
 
     <div class="card">
-      <h2 style="font-size:1rem;margin-bottom:0.55rem;">Pedido sugerido</h2>
+      <div class="card-title">
+        <h2>Pedido sugerido</h2>
+        <span class="badge" id="vPedidoBadge">0 ítems</span>
+      </div>
       <div class="pedido-list" id="vPedidoList">
-        <p class="muted">Aún no hay productos.</p>
+        <p class="muted">Aún no hay productos. Busca y agrega del catálogo.</p>
       </div>
       <div class="totales" id="vTotales">0 cajas · 0 unidades</div>
       <div class="field">
         <label for="vNotas">Notas (opcional)</label>
         <textarea id="vNotas" placeholder="Observaciones para almacén…"></textarea>
       </div>
-      <button type="button" class="btn btn-primary" id="vSendBtn">Enviar sugerencia</button>
+      <button type="button" class="btn btn-primary" id="vSendBtn">Enviar sugerencia a almacén</button>
     </div>
   </div>
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=3.2"></script>
-  <script src="app-vendedores.js?v=3.2"></script>
+  <script src="config.js?v=3.3"></script>
+  <script src="app-vendedores.js?v=3.3"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=3.2').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=3.3').catch(function () {});
     }
   </script>
 </body>

@@ -51,7 +51,8 @@
   }
 
   function esPromOCbm(p) {
-    // Vendedores NO deben ver ni pedir PROM / CBM / COMBO / packs promo
+    // Vendedores NO deben ver ni pedir PROM / CBM / CMB / COMBO / packs promo
+    // Nota: en catálogo Laive los combos salen como "CMB2(...)" (no CBM).
     function norm(s) {
       return String(s || '').toUpperCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -62,10 +63,16 @@
     var linea = norm(p.linea);
     var marca = norm(p.marca);
     var blob = d + ' ' + c + ' ' + f + ' ' + linea + ' ' + marca;
-    if (/\bPROM\b|\bPROMO\b|\bPROMOS\b|\bPROMOCION\b|\bPROM\.|PROM\s/.test(blob)) return true;
-    if (/\bCBM\b|\bCOMBO\b|PACK\s*PROMO|PACK\s*PROM/.test(blob)) return true;
-    if (/PROM|CBM|COMBO/.test(c) || /PROM|CBM|COMBO/.test(f)) return true;
-    if (/^9\d{3,}$/.test(c) && /PROM|CBM|COMBO|PACK/.test(d)) return true;
+
+    // Descripción empieza por PROM. / PROMO / CMB2 / CBM /
+    if (/^(PROM|PROMO|CBM|CMB|COMBO|PACK)[\s.0-9(]/.test(d)) return true;
+    if (/\bPROM\.|\bPROMO\b|\bPROMOS\b|\bPROMOCION\b|\bPROM\b/.test(blob)) return true;
+    // CMB2(...), CBM1, COMBO, PACK PROMO (CMB ≠ CBM)
+    if (/\bCMB\d*\b|\bCBM\d*\b|\bCOMBO\b|PACK\s*PROM/.test(blob)) return true;
+    if (/CMB\d*\(|CBM\d*\(/.test(d)) return true;
+    if (/PROM|CBM|CMB|COMBO/.test(c) || /PROM|CBM|CMB|COMBO/.test(f)) return true;
+    // Códigos 9xxx típicos de promo/combo cuando el nombre lo confirma
+    if (/^9\d{3,}$/.test(c) && /PROM|CBM|CMB|COMBO|PACK/.test(d)) return true;
     if (/^900\d+/.test(c)) return true;
     if (/PROMOS?\s*\/\s*COMBOS?|PROMOS|COMBOS/.test(linea)) return true;
     return false;
@@ -253,17 +260,19 @@
   function renderPedido() {
     var box = $('vPedidoList');
     if (!pedido.length) {
-      box.innerHTML = '<p class="muted">Aún no hay productos.</p>';
+      box.innerHTML = '<p class="muted">Aún no hay productos. Busca y agrega del catálogo.</p>';
     } else {
       box.innerHTML = pedido.map(function (x, i) {
         return (
           '<div class="pedido-item">' +
-            imgHtml(x.imagen_url, 'pi-img') +
-            '<div class="pi-info">' +
-              '<div class="pi-name">' + escapeHtml(x.descripcion) + '</div>' +
-              '<div class="pi-qty">' + escapeHtml(x.codigo) + ' · ' + x.cajas + ' cajas · ' + x.unidades + ' unid.</div>' +
+            '<div class="pi-left">' +
+              imgHtml(x.imagen_url, 'pi-img') +
+              '<div class="pi-info">' +
+                '<div class="pi-name">' + escapeHtml(x.descripcion) + '</div>' +
+                '<div class="pi-qty">' + escapeHtml(x.codigo) + ' · ' + x.cajas + ' cajas · ' + x.unidades + ' unid.</div>' +
+              '</div>' +
             '</div>' +
-            '<button type="button" class="pi-del" data-idx="' + i + '" title="Quitar">✕</button>' +
+            '<button type="button" class="btn btn-danger pi-del" data-idx="' + i + '" title="Quitar">✕</button>' +
           '</div>'
         );
       }).join('');
@@ -271,6 +280,8 @@
     var tc = 0, tu = 0;
     pedido.forEach(function (x) { tc += x.cajas; tu += x.unidades; });
     $('vTotales').textContent = tc + ' cajas · ' + tu + ' unidades · ' + pedido.length + ' ítems';
+    var badge = $('vPedidoBadge');
+    if (badge) badge.textContent = pedido.length + (pedido.length === 1 ? ' ítem' : ' ítems');
   }
 
   function agregar() {
