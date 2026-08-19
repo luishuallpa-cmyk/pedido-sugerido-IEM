@@ -11,15 +11,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3.9">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3.9">
-  <link rel="stylesheet" href="vendedores.css?v=3.9">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.1">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.1">
+  <link rel="stylesheet" href="vendedores.css?v=4.1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div id="globalLoading" class="global-loading" aria-live="polite" aria-busy="true">
-  <div class="gl-spinner" aria-hidden="true"></div>
-  <p class="gl-text">Cargando…</p>
+<div id="globalLoading" class="global-loading" aria-live="polite" aria-busy="true" aria-label="Cargando">
+  <div class="gl-dots" aria-hidden="true"><span></span><span></span><span></span></div>
 </div>
   <!-- LOGIN (mismo estilo que inventario) -->
   <div id="loginScreen" class="login-wrap">
@@ -119,11 +118,11 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=3.9"></script>
-  <script src="app-vendedores.js?v=3.9"></script>
+  <script src="config.js?v=4.1"></script>
+  <script src="app-vendedores.js?v=4.1"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=3.9').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=4.1').catch(function () {});
     }
   </script>
 </body>

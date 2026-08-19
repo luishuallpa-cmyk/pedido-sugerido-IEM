@@ -18,16 +18,28 @@
   var selected = null;
   var filtroTipo = '';
 
-  function setGlobalLoading(on, texto) {
+  function setGlobalLoading(on) {
     var el = document.getElementById('globalLoading');
     if (!el) return;
-    if (texto) {
-      var t = el.querySelector('.gl-text');
-      if (t) t.textContent = texto;
+    if (on) {
+      el.classList.remove('gl-hide');
+      el.setAttribute('aria-busy', 'true');
+    } else {
+      el.classList.add('gl-hide');
+      el.setAttribute('aria-busy', 'false');
     }
-    if (on) el.classList.remove('gl-hide');
-    else el.classList.add('gl-hide');
   }
+  (function () {
+    function hideLoad() {
+      try { setGlobalLoading(false); } catch (e) {
+        var el = document.getElementById('globalLoading');
+        if (el) el.classList.add('gl-hide');
+      }
+    }
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(hideLoad, 400); });
+    window.addEventListener('load', function () { setTimeout(hideLoad, 150); });
+    setTimeout(hideLoad, 6000);
+  })();
 
   function toast(msg, err) {
     var el = $('vToast');
@@ -137,7 +149,7 @@
   }
 
   async function cargarCatalogo() {
-    setGlobalLoading(true, 'Cargando catálogo…');
+    setGlobalLoading(true);
     if (!supabaseClient) return;
     var { data: sess } = await supabaseClient.auth.getSession();
     if (!sess || !sess.session) {
@@ -403,6 +415,7 @@
   }
 
   function mostrarApp() {
+    setGlobalLoading(false);
     $('loginScreen').classList.add('hidden');
     $('appScreen').classList.remove('hidden');
     var _nom = String((perfil && perfil.nombre) || '').trim();
