@@ -109,11 +109,22 @@
     return false;
   }
 
+  function limpiarCodigo(v) {
+    if (v == null || v === '') return '';
+    var s = String(v).trim();
+    // Excel a veces manda 12345678.0 o notación científica
+    if (/^\d+\.0+$/.test(s)) s = s.replace(/\.0+$/, '');
+    if (/e/i.test(s) && !isNaN(Number(s))) {
+      try { s = String(Math.round(Number(s))); } catch (e) {}
+    }
+    return s.trim();
+  }
+
   function mapProducto(p) {
     var o = {
-      codigo: String(p.codigo || '').trim(),
-      codigo_fabrica: p.codigo_fabrica ? String(p.codigo_fabrica) : '',
-      codigo_barras: p.codigo_barras ? String(p.codigo_barras) : '',
+      codigo: limpiarCodigo(p.codigo),
+      codigo_fabrica: limpiarCodigo(p.codigo_fabrica),
+      codigo_barras: limpiarCodigo(p.codigo_barras),
       descripcion: String(p.descripcion || '').trim(),
       unidad_ref: p.unidad_ref || '',
       factor_empaque: Number(p.factor_empaque) > 0 ? Number(p.factor_empaque) : 1,
@@ -212,7 +223,9 @@
   }
 
   function renderResults() {
-    var q = String(($('vSearch') && $('vSearch').value) || '').trim().toLowerCase();
+    var raw = String(($('vSearch') && $('vSearch').value) || '').trim();
+    var q = raw.toLowerCase();
+    var qDigits = raw.replace(/\D/g, '');
     var box = $('vResults');
     if (!box) return;
     if (!q || q.length < 1) {
@@ -220,17 +233,36 @@
       return;
     }
     var list = [];
-    // Atajo: código exacto
-    if (window._vMapCodigo && window._vMapCodigo[q]) {
-      var ex = window._vMapCodigo[q];
-      if (!filtroTipo || ex.tipo_almacen === filtroTipo) list = [ex];
+    var seen = Object.create(null);
+    function addHit(p) {
+      if (!p || !p.codigo || seen[p.codigo]) return;
+      if (filtroTipo && p.tipo_almacen !== filtroTipo) return;
+      seen[p.codigo] = true;
+      list.push(p);
+    }
+    // Atajo: código SAP / fábrica / barras (exacto y sin ceros a la izquierda)
+    if (window._vMapCodigo) {
+      var keys = [raw, q, qDigits];
+      if (qDigits) keys.push(qDigits.replace(/^0+/, '') || '0');
+      keys.forEach(function (k) {
+        if (k && window._vMapCodigo[k]) addHit(window._vMapCodigo[k]);
+      });
     }
     if (!list.length) {
       for (var i = 0; i < catalogo.length && list.length < 40; i++) {
         var p = catalogo[i];
         if (filtroTipo && p.tipo_almacen !== filtroTipo) continue;
-        var blob = p._sb || (p.codigo + ' ' + p.descripcion).toLowerCase();
-        if (blob.indexOf(q) !== -1) list.push(p);
+        var blob = p._sb || (p.codigo + ' ' + (p.codigo_fabrica || '') + ' ' + (p.descripcion || '')).toLowerCase();
+        if (blob.indexOf(q) !== -1) { addHit(p); continue; }
+        // match por dígitos de fábrica/barras (8 dígitos)
+        if (qDigits && qDigits.length >= 4) {
+          var cf = String(p.codigo_fabrica || '').replace(/\D/g, '');
+          var cb = String(p.codigo_barras || '').replace(/\D/g, '');
+          var cc = String(p.codigo || '').replace(/\D/g, '');
+          if (cf === qDigits || cb === qDigits || cc === qDigits) addHit(p);
+          else if (cf && (cf.indexOf(qDigits) === 0 || qDigits.indexOf(cf) === 0)) addHit(p);
+          else if (cb && (cb.indexOf(qDigits) === 0 || qDigits.indexOf(cb) === 0)) addHit(p);
+        }
       }
     }
 
@@ -385,18 +417,42 @@
     }
     var tc = 0, tu = 0;
     pedido.forEach(function (x) { tc += x.cajas; tu += x.unidades; });
+    var notasVal = ($('vNotas') && $('vNotas').value) || '';
     var payload = {
       vendedor_codigo: perfil.usuario,
       vendedor_nombre: perfil.nombre || perfil.usuario,
-      ruta: (perfil && (perfil.ruta || perfil.Ruta)) || null,
       items: pedido,
       total_cajas: tc,
       total_unidades: tu,
-      notas: ($('vNotas') && $('vNotas').value) || null,
       estado: 'pendiente'
     };
+    // Columnas opcionales (si el SQL viejo no las tiene, reintentamos sin ellas)
+    if (notasVal) payload.notas = notasVal;
+    if (perfil && (perfil.ruta || perfil.Ruta)) payload.ruta = perfil.ruta || perfil.Ruta;
+
     try {
-      var { error } = await supabaseClient.from('pedidos_sugeridos').insert(payload);
+      var res = await supabaseClient.from('pedidos_sugeridos').insert(payload);
+      var error = res.error;
+      // Si falta columna en schema cache, reintentar solo con lo mínimo
+      if (error && /column|schema cache|notas|ruta|vendedor_/i.test(String(error.message || error))) {
+        console.warn('Insert con columnas extra falló, reintento mínimo:', error.message || error);
+        var minimo = {
+          items: pedido,
+          total_cajas: tc,
+          total_unidades: tu,
+          estado: 'pendiente'
+        };
+        // Intentar con vendedor si existe
+        minimo.vendedor_codigo = perfil.usuario;
+        minimo.vendedor_nombre = perfil.nombre || perfil.usuario;
+        res = await supabaseClient.from('pedidos_sugeridos').insert(minimo);
+        error = res.error;
+        if (error && /column|schema cache|vendedor_/i.test(String(error.message || error))) {
+          var soloItems = { items: pedido, total_cajas: tc, total_unidades: tu };
+          res = await supabaseClient.from('pedidos_sugeridos').insert(soloItems);
+          error = res.error;
+        }
+      }
       if (error) throw error;
       toast('Sugerencia enviada');
       pedido = [];
@@ -404,7 +460,7 @@
       renderPedido();
     } catch (e) {
       console.error(e);
-      toast('No se pudo enviar: ' + (e.message || e) + ' (¿ejecutaste el SQL?)', true);
+      toast('No se pudo enviar: ' + (e.message || e) + ' — ejecuta supabase-vendedores.sql en Supabase', true);
     }
   }
 

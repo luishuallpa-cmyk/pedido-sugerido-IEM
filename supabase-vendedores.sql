@@ -21,3 +21,18 @@ create policy "pedidos_sugeridos_select_auth" on public.pedidos_sugeridos
 drop policy if exists "pedidos_sugeridos_update_auth" on public.pedidos_sugeridos;
 create policy "pedidos_sugeridos_update_auth" on public.pedidos_sugeridos
   for update to authenticated using (true) with check (true);
+
+
+-- Si la tabla ya existía incompleta, completa columnas:
+alter table public.pedidos_sugeridos add column if not exists vendedor_codigo text;
+alter table public.pedidos_sugeridos add column if not exists vendedor_nombre text;
+alter table public.pedidos_sugeridos add column if not exists ruta text;
+alter table public.pedidos_sugeridos add column if not exists items jsonb default '[]'::jsonb;
+alter table public.pedidos_sugeridos add column if not exists total_cajas integer default 0;
+alter table public.pedidos_sugeridos add column if not exists total_unidades integer default 0;
+alter table public.pedidos_sugeridos add column if not exists notas text;
+alter table public.pedidos_sugeridos add column if not exists estado text default 'pendiente';
+alter table public.pedidos_sugeridos add column if not exists created_at timestamptz default now();
+
+-- Refrescar schema cache de PostgREST (a veces hace falta en Dashboard → Settings → API → Reload)
+notify pgrst, 'reload schema';
