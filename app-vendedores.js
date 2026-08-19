@@ -232,11 +232,19 @@
   function seleccionar(codigo) {
     selected = catalogo.find(function (p) { return p.codigo === codigo; }) || null;
     if (!selected) return;
-    $('vProductoCard').classList.remove('hidden');
+    var card = $('vProductoCard');
+    var catalog = $('vCatalogCard');
+    if (card) card.classList.remove('hidden');
+    // Móvil: ocultar catálogo para subir la tarjeta y digitar sin que el teclado tape el buscador
+    if (catalog && window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
+      catalog.classList.add('hidden');
+    }
+    document.body.classList.add('modo-producto');
     var imgEl = $('vProdImg');
     if (imgEl) {
       if (selected.imagen_url) {
         imgEl.src = selected.imagen_url;
+        imgEl.alt = selected.descripcion || '';
         imgEl.style.display = '';
         imgEl.onerror = function () { imgEl.style.display = 'none'; };
       } else {
@@ -255,6 +263,29 @@
     $('vUnidades').value = '0';
     $('vResults').innerHTML = '';
     if ($('vSearch')) $('vSearch').value = '';
+    setTimeout(function () {
+      if (card && card.scrollIntoView) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      var cajas = $('vCajas');
+      if (cajas) {
+        cajas.focus();
+        if (cajas.select) cajas.select();
+      }
+    }, 80);
+  }
+
+  function volverAlCatalogo() {
+    selected = null;
+    var card = $('vProductoCard');
+    var catalog = $('vCatalogCard');
+    if (card) card.classList.add('hidden');
+    if (catalog) catalog.classList.remove('hidden');
+    document.body.classList.remove('modo-producto');
+    setTimeout(function () {
+      var search = $('vSearch');
+      if (search) search.focus();
+    }, 60);
   }
 
   function renderPedido() {
@@ -313,8 +344,7 @@
       });
     }
     toast('Agregado: ' + selected.codigo);
-    selected = null;
-    $('vProductoCard').classList.add('hidden');
+    volverAlCatalogo();
     renderPedido();
   }
 
@@ -475,8 +505,7 @@
     });
     $('vAddBtn').addEventListener('click', agregar);
     $('vClearProd').addEventListener('click', function () {
-      selected = null;
-      $('vProductoCard').classList.add('hidden');
+      volverAlCatalogo();
     });
     $('vPedidoList').addEventListener('click', function (e) {
       var b = e.target.closest('[data-idx]');

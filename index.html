@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=3.4">
+  <link rel="stylesheet" href="vendedores.css?v=3.5">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -52,7 +52,8 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="layout-main" id="vLayoutMain">
+    <div class="card" id="vCatalogCard">
       <div class="card-title">
         <h2>Catálogo</h2>
         <span class="badge">Sin PROM / CMB</span>
@@ -88,13 +89,14 @@
         </div>
       </div>
       <p class="muted" id="vFactor">Factor: —</p>
-      <div class="pc-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <button type="button" class="btn btn-success" id="vAddBtn" style="flex:1;">Agregar al pedido</button>
-        <button type="button" class="btn btn-outline" id="vClearProd" style="flex:1;">← Cambiar producto</button>
+      <div class="pc-actions">
+        <button type="button" class="btn btn-success" id="vAddBtn">Agregar al pedido</button>
+        <button type="button" class="btn btn-outline" id="vClearProd">← Cambiar producto</button>
       </div>
     </div>
+    </div><!-- /layout-main -->
 
-    <div class="card">
+    <div class="card" id="vPedidoCard">
       <div class="card-title">
         <h2>Pedido sugerido</h2>
         <span class="badge" id="vPedidoBadge">0 ítems</span>
@@ -113,11 +115,11 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=3.4"></script>
-  <script src="app-vendedores.js?v=3.4"></script>
+  <script src="config.js?v=3.5"></script>
+  <script src="app-vendedores.js?v=3.5"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=3.4').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=3.5').catch(function () {});
     }
   </script>
 </body>
