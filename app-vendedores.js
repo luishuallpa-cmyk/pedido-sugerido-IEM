@@ -18,6 +18,17 @@
   var selected = null;
   var filtroTipo = '';
 
+  function setGlobalLoading(on, texto) {
+    var el = document.getElementById('globalLoading');
+    if (!el) return;
+    if (texto) {
+      var t = el.querySelector('.gl-text');
+      if (t) t.textContent = texto;
+    }
+    if (on) el.classList.remove('gl-hide');
+    else el.classList.add('gl-hide');
+  }
+
   function toast(msg, err) {
     var el = $('vToast');
     if (!el) return;
@@ -126,6 +137,7 @@
   }
 
   async function cargarCatalogo() {
+    setGlobalLoading(true, 'Cargando catálogo…');
     if (!supabaseClient) return;
     var { data: sess } = await supabaseClient.auth.getSession();
     if (!sess || !sess.session) {
@@ -172,6 +184,7 @@
         window._vMapCodigo[p.codigo] = p;
         if (p.codigo_fabrica) window._vMapCodigo[String(p.codigo_fabrica)] = p;
       });
+      setGlobalLoading(false);
       $('vCatalogCount').textContent = 'Catálogo: ' + catalogo.length + ' productos habilitados (sin PROM/CBM)';
       if (!catalogo.length) {
         toast('Sin productos habilitados. Sube el Excel base en inventario.', true);
@@ -181,6 +194,7 @@
       renderResults();
     } catch (e) {
       console.error(e);
+      setGlobalLoading(false);
       toast('No se pudo cargar catálogo: ' + (e.message || e), true);
     }
   }
@@ -554,3 +568,12 @@
   bind();
   tryRestore();
 })();
+
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      if (!document.getElementById('appScreen') || document.getElementById('appScreen').classList.contains('hidden')) {
+        setGlobalLoading(false);
+      }
+    }, 600);
+  });

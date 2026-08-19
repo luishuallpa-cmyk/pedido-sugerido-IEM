@@ -13,10 +13,14 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="stylesheet" href="vendedores.css?v=3.5">
+  <link rel="stylesheet" href="vendedores.css?v=3.6">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+<div id="globalLoading" class="global-loading" aria-live="polite" aria-busy="true">
+  <div class="gl-spinner" aria-hidden="true"></div>
+  <p class="gl-text">Cargando…</p>
+</div>
   <!-- LOGIN (mismo estilo que inventario) -->
   <div id="loginScreen" class="login-wrap">
     <button type="button" class="theme-toggle" id="themeToggleBtn" title="Cambiar tema">🌙</button>
@@ -115,11 +119,11 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=3.5"></script>
-  <script src="app-vendedores.js?v=3.5"></script>
+  <script src="config.js?v=3.6"></script>
+  <script src="app-vendedores.js?v=3.6"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=3.5').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=3.6').catch(function () {});
     }
   </script>
 </body>

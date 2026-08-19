@@ -628,3 +628,21 @@ body.modo-producto .producto-card {
     height: 140px;
   }
 }
+
+.global-loading {
+  position: fixed; inset: 0; z-index: 99999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; background: #0b1220; color: #e2e8f0;
+  transition: opacity 0.35s ease, visibility 0.35s;
+}
+.global-loading.gl-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+body.light-theme .global-loading { background: #0A784C; color: #fff; }
+.gl-text { margin: 0; font-size: 0.9rem; font-weight: 500; }
+.gl-spinner {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0%, #fff 70%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  animation: gl-spin 0.85s linear infinite;
+}
+@keyframes gl-spin { to { transform: rotate(360deg); } }
