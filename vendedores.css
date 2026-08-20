@@ -691,23 +691,64 @@ body.modo-producto .producto-card {
 
 .global-loading {
   position: fixed; inset: 0; z-index: 99999;
-  display: flex; align-items: center; justify-content: center;
-  background: #0b1220;
-  transition: opacity 0.4s ease, visibility 0.4s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; background: #0b1220;
+  transition: opacity 0.5s ease, visibility 0.5s;
 }
 .global-loading.gl-hide { opacity: 0; visibility: hidden; pointer-events: none; }
 body.light-theme .global-loading { background: #0A784C; }
-.gl-dots { display: flex; align-items: center; gap: 0.55rem; }
+.global-loading .gl-boot,
+.global-loading .gl-dots { display: none; }
+.global-loading.gl-mode-boot .gl-boot {
+  display: flex; position: relative; width: 96px; height: 96px;
+  align-items: center; justify-content: center;
+}
+.global-loading.gl-mode-dots .gl-dots {
+  display: flex; align-items: center; justify-content: center; gap: 0.65rem;
+}
+.gl-boot-logo {
+  width: 64px; height: 64px; object-fit: contain; border-radius: 14px;
+  animation: gl-boot-logo 1.4s ease-in-out infinite; z-index: 1;
+  background: rgba(255,255,255,0.06);
+}
+.gl-boot-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: rgba(255,255,255,0.9);
+  border-right-color: rgba(16, 185, 129, 0.7);
+  animation: gl-boot-spin 0.9s linear infinite;
+}
+@keyframes gl-boot-spin { to { transform: rotate(360deg); } }
+@keyframes gl-boot-logo {
+  0%, 100% { opacity: 0.85; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
 .gl-dots span {
-  width: 11px; height: 11px; border-radius: 50%;
-  background: rgba(255,255,255,0.92);
-  animation: gl-dot 1.25s ease-in-out infinite;
+  width: 12px; height: 12px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.35);
+  animation: gl-dot 1.05s ease-in-out infinite both;
 }
 .gl-dots span:nth-child(1) { animation-delay: 0s; }
-.gl-dots span:nth-child(2) { animation-delay: 0.18s; }
-.gl-dots span:nth-child(3) { animation-delay: 0.36s; }
+.gl-dots span:nth-child(2) { animation-delay: 0.16s; }
+.gl-dots span:nth-child(3) { animation-delay: 0.32s; }
 @keyframes gl-dot {
-  0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
-  40% { opacity: 1; transform: scale(1.15); }
+  0%, 80%, 100% { opacity: 0.28; transform: translateY(0) scale(0.75); }
+  40% { opacity: 1; transform: translateY(-7px) scale(1.2); }
 }
+#iemPullRefresh {
+  position: fixed; top: 0; left: 50%; transform: translate(-50%, -40px);
+  z-index: 100000; display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 0.9rem; border-radius: 999px;
+  background: rgba(10, 120, 76, 0.95); color: #fff;
+  font-size: 0.82rem; font-weight: 650; opacity: 0; pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: opacity 0.15s, transform 0.15s;
+}
+#iemPullRefresh.iem-pr-ready { background: rgba(5, 150, 105, 0.98); }
+.ri-stock {
+  display: inline-block; margin-top: 0.25rem; font-size: 0.78rem;
+  font-weight: 650; color: #0A784C;
+}
+body:not(.light-theme) .ri-stock { color: #6ee7b7; }
+.ri-stock.sin-stock { color: #b91c1c; }
+
  }

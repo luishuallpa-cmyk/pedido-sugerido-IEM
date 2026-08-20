@@ -18,10 +18,14 @@
   var selected = null;
   var filtroTipo = '';
 
-  function setGlobalLoading(on) {
+  function setGlobalLoading(on, mode) {
     var el = document.getElementById('globalLoading');
     if (!el) return;
     if (on) {
+      window.__vLoadAt = Date.now();
+      var m = mode || 'dots';
+      el.classList.remove('gl-mode-boot', 'gl-mode-dots');
+      el.classList.add(m === 'boot' ? 'gl-mode-boot' : 'gl-mode-dots');
       el.classList.remove('gl-hide');
       el.setAttribute('aria-busy', 'true');
     } else {
@@ -29,17 +33,40 @@
       el.setAttribute('aria-busy', 'false');
     }
   }
-  (function () {
-    function hideLoad() {
-      try { setGlobalLoading(false); } catch (e) {
-        var el = document.getElementById('globalLoading');
-        if (el) el.classList.add('gl-hide');
-      }
+  function hideLoadingMin(minMs) {
+    minMs = minMs == null ? 900 : minMs;
+    var waited = Date.now() - (window.__vLoadAt || Date.now());
+    var delay = Math.max(0, minMs - waited);
+    setTimeout(function () { setGlobalLoading(false); }, delay);
+  }
+  // Arranque: logo
+  window.__vLoadAt = Date.now();
+  try {
+    var _gl = document.getElementById('globalLoading');
+    if (_gl) {
+      _gl.classList.remove('gl-hide', 'gl-mode-dots');
+      _gl.classList.add('gl-mode-boot');
+      _gl.setAttribute('aria-busy', 'true');
     }
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(hideLoad, 400); });
-    window.addEventListener('load', function () { setTimeout(hideLoad, 150); });
-    setTimeout(hideLoad, 6000);
-  })();
+  } catch (e0) {}
+  setTimeout(function () { setGlobalLoading(false); }, 12000);
+
+  function esSupervisor() {
+    var r = String((perfil && perfil.rol) || '').toLowerCase();
+    var u = String((perfil && perfil.usuario) || '').trim();
+    return r === 'supervisor' || r === 'admin' || u === '4901';
+  }
+  function puedeVerStock() {
+    // Solo supervisor (p.ej. 4901) y admin ven existencia en ventas
+    return esSupervisor();
+  }
+  function esRolPermitido(rol, usuario) {
+    var r = String(rol || '').toLowerCase();
+    var u = String(usuario || '').trim();
+    if (r === 'vendedor' || r === 'admin' || r === 'supervisor') return true;
+    if (u === '4901') return true;
+    return false;
+  }
 
   function toast(msg, err) {
     var el = $('vToast');
@@ -132,6 +159,10 @@
       marca: p.marca ? String(p.marca) : '',
       tipo_almacen: normalizarTipo(p.tipo_almacen) || inferirTipo(p),
       imagen_url: p.imagen_url ? String(p.imagen_url) : '',
+      stock: (function () {
+        var n = Number(p.stock != null ? p.stock : (p.existencia != null ? p.existencia : p.stock_sistema));
+        return isFinite(n) ? n : null;
+      })(),
       activo: p.activo !== false
     };
     o._sb = (o.codigo + '\u0001' + o.codigo_fabrica + '\u0001' + o.codigo_barras + '\u0001' + o.descripcion + '\u0001' + o.linea + '\u0001' + o.marca).toLowerCase();
@@ -160,7 +191,7 @@
   }
 
   async function cargarCatalogo() {
-    setGlobalLoading(true);
+    setGlobalLoading(true, 'dots');
     if (!supabaseClient) return;
     var { data: sess } = await supabaseClient.auth.getSession();
     if (!sess || !sess.session) {
@@ -175,9 +206,17 @@
       while (true) {
         var { data, error } = await supabaseClient
           .from('productos')
-          .select('codigo,codigo_fabrica,codigo_barras,descripcion,unidad_ref,factor_empaque,linea,marca,activo,tipo_almacen,imagen_url')
+          .select('codigo,codigo_fabrica,codigo_barras,descripcion,unidad_ref,factor_empaque,linea,marca,activo,tipo_almacen,imagen_url,stock')
           .eq('activo', true)
           .range(from, from + page - 1);
+        if (error && /stock/i.test(error.message || '')) {
+          var r0 = await supabaseClient
+            .from('productos')
+            .select('codigo,codigo_fabrica,codigo_barras,descripcion,unidad_ref,factor_empaque,linea,marca,activo,tipo_almacen,imagen_url')
+            .eq('activo', true)
+            .range(from, from + page - 1);
+          data = r0.data; error = r0.error;
+        }
         // Si falta alguna columna nueva, reintentar sin ella
         if (error && /imagen_url|tipo_almacen|codigo_barras/i.test(error.message || '')) {
           var r2 = await supabaseClient
@@ -271,6 +310,16 @@
       return;
     }
     box.innerHTML = list.map(function (p) {
+      var stockHtml = '';
+      if (puedeVerStock() && p.stock != null) {
+        var fac = p.factor_empaque > 1 ? p.factor_empaque : 1;
+        var cajas = fac > 1 ? Math.floor(p.stock / fac) : 0;
+        var und = fac > 1 ? (p.stock % fac) : p.stock;
+        var stCls = p.stock <= 0 ? 'ri-stock sin-stock' : 'ri-stock';
+        stockHtml = '<div class="' + stCls + '">Stock: ' +
+          (fac > 1 ? (cajas + ' cj · ' + und + ' und') : (p.stock + ' und')) +
+          '</div>';
+      }
       return (
         '<button type="button" class="result-item" data-codigo="' + escapeHtml(p.codigo) + '">' +
           imgHtml(p.imagen_url, 'ri-img') +
@@ -281,6 +330,7 @@
               (p.tipo_almacen ? ' · ' + escapeHtml(p.tipo_almacen) : '') +
               (p.linea ? ' · ' + escapeHtml(p.linea) : '') +
             '</div>' +
+            stockHtml +
           '</div>' +
         '</button>'
       );
@@ -546,24 +596,30 @@
   }
 
   function mostrarLogin() {
+    setGlobalLoading(false);
     $('loginScreen').classList.remove('hidden');
     $('appScreen').classList.add('hidden');
     perfil = null;
   }
 
   function mostrarApp() {
-    setGlobalLoading(false);
+    hideLoadingMin(900);
     $('loginScreen').classList.add('hidden');
     $('appScreen').classList.remove('hidden');
     var _nom = String((perfil && perfil.nombre) || '').trim();
     var _usr = String((perfil && perfil.usuario) || '').trim();
     var _rol = String((perfil && perfil.rol) || '').toLowerCase();
-    var _et = _rol === 'admin' ? 'Admin' : 'Vendedor';
+    var _et = 'Vendedor';
+    if (_rol === 'admin') _et = 'Admin';
+    else if (_rol === 'supervisor' || _usr === '4901') _et = 'Supervisor';
     if (_nom && _usr && _nom.toLowerCase() !== _usr.toLowerCase()) {
       $('vWho').textContent = _et + ' · ' + _nom + ' · ' + _usr;
     } else {
       $('vWho').textContent = _usr ? (_et + ' ' + _usr) : _et;
     }
+    try {
+      if (typeof window.__vPushBackGuard === 'function') window.__vPushBackGuard();
+    } catch (eG) {}
   }
 
   async function login() {
@@ -573,8 +629,9 @@
       toast('Usuario y clave requeridos', true);
       return;
     }
+    setGlobalLoading(true, 'dots');
     if (!supabaseClient) supabaseClient = initSupabase();
-    if (!supabaseClient) return;
+    if (!supabaseClient) { setGlobalLoading(false); return; }
     $('vLoginBtn').disabled = true;
     try {
       var email = user.indexOf('@') !== -1 ? user : (user + '@iem.local');
@@ -598,9 +655,9 @@
       }
       if (!perf) throw new Error('No hay perfil para este usuario');
       var rol = String(perf.rol || '').toLowerCase();
-      if (rol !== 'vendedor' && rol !== 'admin') {
+      if (!esRolPermitido(rol, perf.usuario)) {
         await supabaseClient.auth.signOut();
-        throw new Error('Solo rol vendedor o administrador');
+        throw new Error('Solo vendedor, supervisor o administrador');
       }
       if (perf.activo === false) {
         await supabaseClient.auth.signOut();
@@ -611,6 +668,7 @@
       await cargarCatalogo();
     } catch (e) {
       console.error(e);
+      setGlobalLoading(false);
       var msg = e.message || String(e);
       if (/invalid login|invalid credentials|email/i.test(msg)) {
         msg = 'Usuario o clave incorrectos';
@@ -708,8 +766,9 @@
         .eq('usuario', user)
         .maybeSingle();
       var rolR = String((perf && perf.rol) || '').toLowerCase();
-      if (perf && (rolR === 'vendedor' || rolR === 'admin') && perf.activo !== false) {
+      if (perf && esRolPermitido(rolR, perf.usuario) && perf.activo !== false) {
         perfil = perf;
+        setGlobalLoading(true, 'dots');
         mostrarApp();
         await cargarCatalogo();
       }
@@ -717,6 +776,137 @@
       console.warn(e);
     }
   }
+
+  
+
+  // —— Gesto atrás: confirmar salir / cerrar sesión ——
+  (function initGestoAtrasV() {
+    var preguntando = false;
+    function haySesion() {
+      return !!(perfil && perfil.usuario);
+    }
+    function pushGuard() {
+      try { history.pushState({ vGuard: 1, t: Date.now() }, '', location.href); } catch (e) {}
+    }
+    window.__vPushBackGuard = function () {
+      try {
+        history.replaceState({ vGuard: 1, base: 1 }, '', location.href);
+        history.pushState({ vGuard: 1, t: Date.now() }, '', location.href);
+      } catch (e) { pushGuard(); }
+    };
+    window.addEventListener('popstate', function () {
+      if (!haySesion()) return;
+      pushGuard();
+      if (preguntando) return;
+      preguntando = true;
+      var ok = window.confirm('¿Salir y cerrar sesión?');
+      preguntando = false;
+      if (ok) {
+        if (typeof logout === 'function') logout();
+        try { history.replaceState({ vGuard: 0 }, '', location.href); } catch (e) {}
+      } else {
+        if (typeof window.__vPushBackGuard === 'function') window.__vPushBackGuard();
+      }
+    });
+  })();
+
+  // —— Pull-to-refresh (arriba → centro) ——
+  (function initPullRefreshV() {
+    var startY = 0, pulling = false, armed = false, indicator = null;
+    function thresholdPx() { return Math.max(160, Math.floor(window.innerHeight * 0.42)); }
+    function topZonePx() { return Math.max(48, Math.floor(window.innerHeight * 0.12)); }
+    function scrollTopNow() {
+      var se = document.scrollingElement || document.documentElement;
+      return Math.max(window.pageYOffset || 0, se ? se.scrollTop : 0, document.body ? document.body.scrollTop : 0);
+    }
+    function ensureIndicator() {
+      if (indicator) return indicator;
+      indicator = document.createElement('div');
+      indicator.id = 'iemPullRefresh';
+      indicator.innerHTML = '<span class="iem-pr-ico">↓</span> <span class="iem-pr-txt">Desliza hasta el centro</span>';
+      document.body.appendChild(indicator);
+      return indicator;
+    }
+    function setProgress(dy) {
+      var el = ensureIndicator();
+      var th = thresholdPx();
+      var p = Math.min(1, dy / th);
+      el.style.opacity = String(0.4 + p * 0.6);
+      el.style.transform = 'translate(-50%, ' + Math.min(dy * 0.35, window.innerHeight * 0.35) + 'px)';
+      el.classList.toggle('iem-pr-ready', dy >= th);
+      el.querySelector('.iem-pr-txt').textContent = dy >= th ? 'Suelta para actualizar' : 'Desliza hasta el centro…';
+      el.querySelector('.iem-pr-ico').textContent = dy >= th ? '↑' : '↓';
+    }
+    function hideIndicator() {
+      if (!indicator) return;
+      indicator.style.opacity = '0';
+      indicator.style.transform = 'translate(-50%, -40px)';
+      indicator.classList.remove('iem-pr-ready');
+    }
+    function hardRefresh() {
+      var el = ensureIndicator();
+      el.classList.add('iem-pr-ready');
+      el.style.opacity = '1';
+      el.querySelector('.iem-pr-txt').textContent = 'Actualizando…';
+      var done = false;
+      function finish() {
+        if (done) return;
+        done = true;
+        try {
+          var base = location.pathname || './vendedores.html';
+          location.replace(base + (base.indexOf('?') >= 0 ? '&' : '?') + '_r=' + Date.now());
+        } catch (e) { location.reload(); }
+      }
+      var tasks = [];
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          tasks.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+            return Promise.all(regs.map(function (r) { return r.unregister(); }));
+          }));
+        }
+        if (window.caches && caches.keys) {
+          tasks.push(caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+      } catch (e) {}
+      Promise.all(tasks).then(finish, finish);
+      setTimeout(finish, 1500);
+    }
+    document.addEventListener('touchstart', function (e) {
+      if (scrollTopNow() > 5) return;
+      if (!e.touches || e.touches.length !== 1) return;
+      if (e.touches[0].clientY > topZonePx()) return;
+      var t = e.target;
+      if (t && t.closest && t.closest('input, textarea, select, button, a')) return;
+      startY = e.touches[0].clientY;
+      pulling = true;
+      armed = false;
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      if (!pulling) return;
+      if (!e.touches || !e.touches[0]) return;
+      if (scrollTopNow() > 5) { pulling = false; hideIndicator(); return; }
+      var dy = e.touches[0].clientY - startY;
+      if (dy < 20) { hideIndicator(); armed = false; return; }
+      armed = dy >= thresholdPx();
+      setProgress(dy);
+    }, { passive: true });
+    document.addEventListener('touchend', function () {
+      if (!pulling) return;
+      var should = armed;
+      pulling = false; armed = false;
+      if (should) hardRefresh();
+      else hideIndicator();
+    }, { passive: true });
+  })();
+
+  // Mostrar login con animación de arranque
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      if (!perfil) hideLoadingMin(700);
+    }, 400);
+  });
 
   cargarTema();
   bind();

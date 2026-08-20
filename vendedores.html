@@ -13,11 +13,15 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.1">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.1">
-  <link rel="stylesheet" href="vendedores.css?v=4.1">
+  <link rel="stylesheet" href="vendedores.css?v=4.2">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div id="globalLoading" class="global-loading" aria-live="polite" aria-busy="true" aria-label="Cargando">
+<div id="globalLoading" class="global-loading gl-mode-boot" aria-live="polite" aria-busy="true" aria-label="Cargando">
+  <div class="gl-boot" aria-hidden="true">
+    <div class="gl-boot-ring"></div>
+    <img class="gl-boot-logo" src="./logo-iem-ventas.png" alt="">
+  </div>
   <div class="gl-dots" aria-hidden="true"><span></span><span></span><span></span></div>
 </div>
   <!-- LOGIN (mismo estilo que inventario) -->
@@ -38,7 +42,7 @@
         <input id="vPass" type="password" autocomplete="current-password" placeholder="••••">
       </div>
       <button type="button" class="btn btn-primary" id="vLoginBtn">Entrar</button>
-      <p class="muted" style="margin-top:0.75rem;text-align:center;font-size:0.78rem;">Misma cuenta Auth que inventario (rol vendedor)</p>
+      <p class="muted" style="margin-top:0.75rem;text-align:center;font-size:0.78rem;">Misma cuenta Auth · vendedor / supervisor / admin</p>
     </div>
   </div>
 
@@ -118,11 +122,15 @@
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=4.1"></script>
-  <script src="app-vendedores.js?v=3.3"></script>
+  <script src="config.js?v=4.2"></script>
+  <script src="app-vendedores.js?v=4.2"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=4.1').catch(function () {});
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js?v=4.2').then(function (reg) {
+          try { reg.update(); } catch (e) {}
+        }).catch(function () {});
+      });
     }
   </script>
 </body>
