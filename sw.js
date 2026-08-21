@@ -1,76 +1,89 @@
-/* IEM Inventario — SW v4.5.14: network-first shell, limpia cachés viejos */
-const CACHE = 'iem-inventario-v4.5.14';
+/* IEM Ventas / Pedidos — SW v4.3 */
+const SW_VERSION = '4.3';
+const CACHE = 'iem-ventas-v' + SW_VERSION;
 const PRECACHE = [
   './',
+  './vendedores.html',
   './index.html',
-  './app.js',
-  './iem-core.js',
-  './style.css',
-  './admin.css',
+  './vendedores.css',
+  './app-vendedores.js',
   './config.js',
   './manifest.webmanifest',
-  './logo-iem.png',
+  './logo-iem-ventas.png',
   './icon-192.png',
   './icon-512.png',
-  './favicon-32.png'
+  './icon-512-maskable.png',
+  './apple-touch-icon.png',
+  './favicon-32.png',
+  './favicon-64.png'
 ];
 
-self.addEventListener('install', (event) => {
+function sameOrigin(url) {
+  try { return url.origin === self.location.origin; } catch (e) { return false; }
+}
+function isBypass(url) {
+  var h = url.hostname || '';
+  if (h.indexOf('supabase') !== -1) return true;
+  if (h.indexOf('cdn') !== -1 || h.indexOf('unpkg') !== -1 || h.indexOf('googleapis') !== -1 || h.indexOf('gstatic') !== -1) return true;
+  return false;
+}
+
+self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE).catch(function () {}))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(function (c) {
+      return Promise.all(PRECACHE.map(function (url) {
+        return c.add(url).catch(function () {});
+      }));
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
+    }).then(function () { return self.clients.claim(); })
   );
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
-});
-
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
+self.addEventListener('fetch', function (event) {
+  var req = event.request;
   if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.hostname.indexOf('supabase') !== -1) return;
-  if (url.hostname.indexOf('cdn') !== -1 || url.hostname.indexOf('unpkg') !== -1) return;
+  var url;
+  try { url = new URL(req.url); } catch (e) { return; }
+  if (isBypass(url)) return;
+  if (!sameOrigin(url)) return;
 
-  const isShell =
-    url.origin === self.location.origin &&
-    (/\.(js|css)(\?|$)/.test(url.pathname) ||
-      /index\.html$/.test(url.pathname) ||
-      url.pathname.endsWith('/') ||
-      /sw\.js$/.test(url.pathname));
+  var isShell = /\.(js|css)(\?|$)/.test(url.pathname) ||
+    /index\.html$|vendedores\.html$/.test(url.pathname) ||
+    url.pathname.endsWith('/');
 
   if (isShell) {
     event.respondWith(
-      fetch(req, { cache: 'no-store' }).then((res) => {
+      fetch(req, { cache: 'no-store' }).then(function (res) {
         if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(function () {});
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
         }
         return res;
-      }).catch(() => caches.match(req))
+      }).catch(function () {
+        return caches.match(req).then(function (cached) {
+          return cached || caches.match('./vendedores.html') || caches.match('./index.html');
+        });
+      })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const net = fetch(req).then((res) => {
-        if (res && res.ok && url.origin === self.location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(function () {});
+    caches.match(req).then(function (cached) {
+      var net = fetch(req).then(function (res) {
+        if (res && res.ok) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
         }
         return res;
-      }).catch(() => cached);
+      }).catch(function () { return cached; });
       return cached || net;
     })
   );

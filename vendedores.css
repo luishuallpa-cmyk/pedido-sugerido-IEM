@@ -62,8 +62,11 @@ html, body {
   transition: background 0.25s, color 0.2s;
 }
 body {
-  padding: 0.85rem;
-  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  /* Edge-to-edge: safe-area en los 4 lados (status bar / notch / home) */
+  padding-top: max(0.85rem, env(safe-area-inset-top, 0px));
+  padding-right: max(0.85rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(0.85rem, env(safe-area-inset-left, 0px));
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 80% 60% at 10% 20%, var(--mesh-glow) 0%, transparent 55%),

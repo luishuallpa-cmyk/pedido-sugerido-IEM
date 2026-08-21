@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  var APP_VERSION = '4.3';
+
   function $(id) { return document.getElementById(id); }
   function debounce(fn, ms) {
     var t;
@@ -657,7 +659,7 @@
       var rol = String(perf.rol || '').toLowerCase();
       if (!esRolPermitido(rol, perf.usuario)) {
         await supabaseClient.auth.signOut();
-        throw new Error('Solo vendedor, supervisor o administrador');
+        throw new Error('Esta cuenta no es de vendedor. Usa la app de Inventario si eres almacén/admin de conteo.');
       }
       if (perf.activo === false) {
         await supabaseClient.auth.signOut();
