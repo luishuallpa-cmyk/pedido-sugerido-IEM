@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '4.3';
+  var APP_VERSION = '4.4';
 
   function $(id) { return document.getElementById(id); }
   function debounce(fn, ms) {
@@ -19,6 +19,44 @@
   var pedido = [];
   var selected = null;
   var filtroTipo = '';
+  var enviandoPedido = false;
+  var DRAFT_KEY = 'iem_vendedor_pedido_draft';
+
+  function guardarBorradorPedido() {
+    try {
+      if (!perfil || !perfil.usuario) return;
+      var payload = {
+        usuario: String(perfil.usuario),
+        items: pedido,
+        notas: ($('vNotas') && $('vNotas').value) || '',
+        ts: Date.now()
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    } catch (e) {}
+  }
+  function limpiarBorradorPedido() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+  }
+  function cargarBorradorPedido() {
+    try {
+      if (!perfil || !perfil.usuario) return;
+      var raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (!d || String(d.usuario) !== String(perfil.usuario)) return;
+      if (d.ts && (Date.now() - Number(d.ts)) > 48 * 3600 * 1000) {
+        limpiarBorradorPedido();
+        return;
+      }
+      if (Array.isArray(d.items) && d.items.length) {
+        pedido = d.items;
+        if ($('vNotas') && d.notas) $('vNotas').value = d.notas;
+        renderPedido();
+        toast('Pedido en borrador restaurado (' + pedido.length + ' ítems)');
+      }
+    } catch (e) {}
+  }
+
 
   function setGlobalLoading(on, mode) {
     var el = document.getElementById('globalLoading');
@@ -456,6 +494,7 @@
     toast('Agregado: ' + selected.codigo);
     volverAlCatalogo();
     renderPedido();
+    guardarBorradorPedido();
   }
 
   function genPedidoId() {
@@ -471,6 +510,7 @@
   }
 
   async function enviar() {
+    if (enviandoPedido) return;
     if (!pedido.length) {
       toast('El pedido está vacío', true);
       return;
@@ -479,18 +519,34 @@
       toast('Sin sesión', true);
       return;
     }
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      toast('Sin internet. El pedido quedó en borrador; envíalo cuando tengas red.', true);
+      guardarBorradorPedido();
+      return;
+    }
     var tc = 0, tu = 0;
-    pedido.forEach(function (x) { tc += x.cajas; tu += x.unidades; });
+    pedido.forEach(function (x) { tc += Number(x.cajas) || 0; tu += Number(x.unidades) || 0; });
+    var resumen = pedido.length + ' ítems · ' + tc + ' cajas · ' + tu + ' und';
+    if (!window.confirm('¿Enviar sugerencia a almacén?\n\n' + resumen)) return;
+
+    enviandoPedido = true;
+    var btn = $('vSendBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+    }
+
     var notasVal = ($('vNotas') && $('vNotas').value) || '';
     var pedidoId = genPedidoId();
     var usr = String(perfil.usuario || perfil.nombre || '').trim();
     if (!usr) {
       toast('No se identificó el usuario de la sesión', true);
+      enviandoPedido = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Enviar sugerencia a almacén'; }
       return;
     }
     var nom = String(perfil.nombre || perfil.usuario || usr).trim();
 
-    // La tabla en Supabase puede tener "usuario" y/o "vendedor_codigo" (esquemas viejos/nuevos)
     var payload = {
       id: pedidoId,
       usuario: usr,
@@ -563,7 +619,6 @@
           error = res.error;
           continue;
         }
-        // genérico: payload mínimo con usuario + items
         res = await supabaseClient.from('pedidos_sugeridos').insert({
           id: genPedidoId(),
           usuario: usr,
@@ -587,13 +642,26 @@
       }
 
       if (error) throw error;
-      toast('Sugerencia enviada a almacén');
+      toast('✓ Enviado a almacén · ' + resumen);
       pedido = [];
       if ($('vNotas')) $('vNotas').value = '';
+      limpiarBorradorPedido();
       renderPedido();
     } catch (e) {
       console.error(e);
-      toast('No se pudo enviar: ' + (e.message || e), true);
+      var em = String((e && e.message) || e || '');
+      if (/failed to fetch|network|Load failed/i.test(em)) {
+        toast('Sin conexión. El pedido quedó guardado en este celular.', true);
+        guardarBorradorPedido();
+      } else {
+        toast('No se pudo enviar: ' + em, true);
+      }
+    } finally {
+      enviandoPedido = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Enviar sugerencia a almacén';
+      }
     }
   }
 
@@ -637,7 +705,11 @@
     $('vLoginBtn').disabled = true;
     try {
       var email = user.indexOf('@') !== -1 ? user : (user + '@iem.local');
-      var { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+      var loginPromise = supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+      var loginTimeout = new Promise(function (_, reject) {
+        setTimeout(function () { reject(new Error('timeout_login')); }, 12000);
+      });
+      var { data, error } = await Promise.race([loginPromise, loginTimeout]);
       if (error) throw error;
       var uid = data.user && data.user.id;
       var { data: perf, error: e2 } = await supabaseClient
@@ -668,12 +740,17 @@
       perfil = perf;
       mostrarApp();
       await cargarCatalogo();
+      cargarBorradorPedido();
     } catch (e) {
       console.error(e);
       setGlobalLoading(false);
       var msg = e.message || String(e);
-      if (/invalid login|invalid credentials|email/i.test(msg)) {
+      if (/timeout_login/i.test(msg)) {
+        msg = 'La conexión tardó demasiado. Revisa internet e intenta de nuevo.';
+      } else if (/invalid login|invalid credentials|email/i.test(msg)) {
         msg = 'Usuario o clave incorrectos';
+      } else if (/failed to fetch|network|Load failed/i.test(msg)) {
+        msg = 'Sin conexión. Intenta de nuevo.';
       }
       toast(msg, true);
     } finally {
@@ -741,9 +818,22 @@
       if (!isNaN(i)) {
         pedido.splice(i, 1);
         renderPedido();
+        guardarBorradorPedido();
       }
     });
     $('vSendBtn').addEventListener('click', enviar);
+    if ($('vNotas')) {
+      $('vNotas').addEventListener('change', guardarBorradorPedido);
+      $('vNotas').addEventListener('blur', guardarBorradorPedido);
+    }
+    // Aviso online/offline
+    window.addEventListener('offline', function () {
+      toast('Sin internet — el pedido se guarda en este celular', true);
+      guardarBorradorPedido();
+    });
+    window.addEventListener('online', function () {
+      toast('Internet recuperado');
+    });
     document.querySelectorAll('#vFiltros .filtro-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.querySelectorAll('#vFiltros .filtro-btn').forEach(function (b) { b.classList.remove('active'); });
@@ -773,6 +863,7 @@
         setGlobalLoading(true, 'dots');
         mostrarApp();
         await cargarCatalogo();
+        cargarBorradorPedido();
       }
     } catch (e) {
       console.warn(e);
@@ -914,12 +1005,3 @@
   bind();
   tryRestore();
 })();
-
-
-  document.addEventListener('DOMContentLoaded', function () {
-    setTimeout(function () {
-      if (!document.getElementById('appScreen') || document.getElementById('appScreen').classList.contains('hidden')) {
-        setGlobalLoading(false);
-      }
-    }, 600);
-  });

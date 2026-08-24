@@ -1,5 +1,5 @@
-/* IEM Ventas / Pedidos — SW v4.3 */
-const SW_VERSION = '4.3';
+/* IEM Ventas / Pedidos — SW v4.4 */
+const SW_VERSION = '4.4';
 const CACHE = 'iem-ventas-v' + SW_VERSION;
 const PRECACHE = [
   './',
