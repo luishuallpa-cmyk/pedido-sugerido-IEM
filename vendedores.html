@@ -14,9 +14,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.4">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.4">
-  <link rel="stylesheet" href="vendedores.css?v=4.4">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.5">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.5">
+  <link rel="stylesheet" href="vendedores.css?v=4.5">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -122,16 +122,16 @@
       </div>
       <button type="button" class="btn btn-primary" id="vSendBtn">Enviar sugerencia a almacén</button>
     </div>
-  </div>
+</div>
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=4.4"></script>
-  <script src="app-vendedores.js?v=4.4"></script>
+  <script src="config.js?v=4.5"></script>
+  <script src="app-vendedores.js?v=4.5"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=4.4').then(function (reg) {
+        navigator.serviceWorker.register('./sw.js?v=4.5').then(function (reg) {
           try { reg.update(); } catch (e) {}
         }).catch(function () {});
       });

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '4.4';
+  var APP_VERSION = '4.5';
 
   function $(id) { return document.getElementById(id); }
   function debounce(fn, ms) {
@@ -509,7 +509,8 @@
     });
   }
 
-  async function enviar() {
+  
+async function enviar() {
     if (enviandoPedido) return;
     if (!pedido.length) {
       toast('El pedido está vacío', true);
