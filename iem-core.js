@@ -1,7 +1,7 @@
 /* IEM Inventario — núcleo compartido (versión + catálogo offline) */
 (function (w) {
   'use strict';
-  var VERSION = (w.IEM_CONFIG && w.IEM_CONFIG.VERSION) || (w.IEM && w.IEM.VERSION) || '1.2.9';
+  var VERSION = '4.5.14';
   var DB_NAME = 'iem_inventario_db';
   var DB_VER = 1;
   var STORE = 'catalogo';
@@ -93,53 +93,9 @@
         ? ('📴 Offline · catálogo ' + fechaTexto)
         : '📴 Modo offline';
       el.classList.add('offline-badge-on');
-      el.setAttribute('aria-live', 'polite');
     } else {
       el.hidden = true;
       el.classList.remove('offline-badge-on');
-    }
-  }
-
-  /** Estado de red: actualiza badge y dispara callbacks al recuperar conexión. */
-  var _onlineHandlers = [];
-  var _offlineHandlers = [];
-
-  function onOnline(fn) {
-    if (typeof fn === 'function') _onlineHandlers.push(fn);
-  }
-  function onOffline(fn) {
-    if (typeof fn === 'function') _offlineHandlers.push(fn);
-  }
-
-  function notifyOnline() {
-    setOfflineBadge(false);
-    for (var i = 0; i < _onlineHandlers.length; i++) {
-      try { _onlineHandlers[i](); } catch (e) {}
-    }
-  }
-  function notifyOffline() {
-    // Solo marca offline de red; el catálogo puede seguir en IDB
-    var el = document.getElementById('offlineBadge');
-    if (el && el.hidden) {
-      setOfflineBadge(true, 'sin red');
-    }
-    for (var i = 0; i < _offlineHandlers.length; i++) {
-      try { _offlineHandlers[i](); } catch (e) {}
-    }
-  }
-
-  if (typeof w.addEventListener === 'function') {
-    w.addEventListener('online', notifyOnline);
-    w.addEventListener('offline', notifyOffline);
-    // Estado inicial si ya arrancamos sin red
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      try {
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', function () { notifyOffline(); });
-        } else {
-          notifyOffline();
-        }
-      } catch (eInit) {}
     }
   }
 
@@ -148,6 +104,4 @@
   w.IEM.guardarCatalogoOffline = guardarCatalogoOffline;
   w.IEM.leerCatalogoOffline = leerCatalogoOffline;
   w.IEM.setOfflineBadge = setOfflineBadge;
-  w.IEM.onOnline = onOnline;
-  w.IEM.onOffline = onOffline;
 })(window);
