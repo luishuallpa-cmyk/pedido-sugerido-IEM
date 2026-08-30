@@ -14,9 +14,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.7">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.7">
-  <link rel="stylesheet" href="vendedores.css?v=4.7">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.8">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.8">
+  <link rel="stylesheet" href="vendedores.css?v=4.8">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -61,19 +61,10 @@
         </div>
       </div>
       <div class="header-right">
+        <button type="button" class="btn btn-outline btn-sm" id="vRutaBtn" title="Clientes y ubicación de la ruta">📍 Ruta</button>
         <button type="button" class="theme-toggle" id="themeToggleBtnApp" title="Cambiar tema">🌙</button>
         <button type="button" class="btn btn-outline btn-sm" id="vLogoutBtn">Salir</button>
       </div>
-    </div>
-
-    <div class="card" id="vRutaCard">
-      <div class="card-title">
-        <h2>Mi ruta de entrega</h2>
-        <button type="button" class="btn btn-outline btn-sm" id="vRutaRefresh">↻</button>
-      </div>
-      <p class="muted" id="vRutaMeta">Cargando paradas del día…</p>
-      <div id="vRutaList" class="ruta-vend-list"></div>
-      <a id="vRutaMapsAll" class="btn btn-outline btn-sm" style="display:none;margin-top:.5rem;text-align:center" target="_blank" rel="noopener">Abrir ruta en Google Maps</a>
     </div>
 
     <div class="layout-main" id="vLayoutMain">
@@ -150,14 +141,31 @@
     </div>
 </div>
 
+  <!-- Panel ruta / ubicaciones (abre con botón 📍 Ruta) -->
+  <div id="vRutaModal" class="ruta-modal hidden" aria-hidden="true">
+    <div class="ruta-modal-backdrop" id="vRutaBackdrop"></div>
+    <div class="ruta-modal-sheet" role="dialog" aria-labelledby="vRutaTitle">
+      <div class="ruta-modal-head">
+        <h2 id="vRutaTitle">📍 Clientes · ubicación</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="vRutaClose">Cerrar</button>
+      </div>
+      <p class="muted" id="vRutaMeta" style="margin:0.35rem 0;">—</p>
+      <div class="ruta-modal-actions">
+        <button type="button" class="btn btn-outline btn-sm" id="vRutaRefresh">↻ Actualizar</button>
+        <a id="vRutaMapsAll" class="btn btn-primary btn-sm" style="display:none;text-align:center" target="_blank" rel="noopener">Maps · toda la ruta</a>
+      </div>
+      <div id="vRutaList" class="ruta-vend-list"></div>
+    </div>
+  </div>
+
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=4.7"></script>
-  <script src="app-vendedores.js?v=4.7"></script>
+  <script src="config.js?v=4.8"></script>
+  <script src="app-vendedores.js?v=4.8"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=4.7').then(function (reg) {
+        navigator.serviceWorker.register('./sw.js?v=4.8').then(function (reg) {
           try { reg.update(); } catch (e) {}
         }).catch(function () {});
       });

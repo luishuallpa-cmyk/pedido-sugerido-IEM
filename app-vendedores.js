@@ -657,7 +657,7 @@
       }
       if (!rows.length) {
         list.innerHTML = '';
-        if (meta) meta.textContent = 'No hay ruta publicada para tu código (' + vend + ').';
+        if (meta) meta.textContent = 'Sin ruta publicada aún para ' + vend + '. El admin la carga en Consolidado → Ruta/Geo.';
         if (linkAll) linkAll.style.display = 'none';
         return;
       }
@@ -719,9 +719,9 @@
       if (meta) {
         var m = (e && e.message) || String(e);
         if (/relation.*does not exist/i.test(m)) {
-          meta.textContent = 'Aún no está activa la tabla de rutas en Supabase.';
+          meta.textContent = 'Falta configurar rutas en Supabase (SQL_rutas_entrega).';
         } else {
-          meta.textContent = 'No se pudo cargar la ruta.';
+          meta.textContent = 'Sin paradas o sin permiso. Publica la liquidación en Consolidado.';
         }
       }
     }
@@ -943,7 +943,6 @@
     } catch (eG) {}
     // precargar GPS en segundo plano
     try { precargarGeo(); } catch (eGeo) {}
-    try { cargarMiRuta(); } catch (eR) {}
   }
 
   async function login() {
@@ -1076,6 +1075,24 @@
       }
     });
     $('vSendBtn').addEventListener('click', enviar);
+    function abrirPanelRuta() {
+      var m = $('vRutaModal');
+      if (m) {
+        m.classList.remove('hidden');
+        m.setAttribute('aria-hidden', 'false');
+      }
+      cargarMiRuta();
+    }
+    function cerrarPanelRuta() {
+      var m = $('vRutaModal');
+      if (m) {
+        m.classList.add('hidden');
+        m.setAttribute('aria-hidden', 'true');
+      }
+    }
+    if ($('vRutaBtn')) $('vRutaBtn').addEventListener('click', abrirPanelRuta);
+    if ($('vRutaClose')) $('vRutaClose').addEventListener('click', cerrarPanelRuta);
+    if ($('vRutaBackdrop')) $('vRutaBackdrop').addEventListener('click', cerrarPanelRuta);
     if ($('vRutaRefresh')) $('vRutaRefresh').addEventListener('click', function () { cargarMiRuta(); });
     if ($('vGeoCheck')) {
       $('vGeoCheck').addEventListener('change', function () {
