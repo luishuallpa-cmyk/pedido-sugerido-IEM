@@ -14,9 +14,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.5">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.5">
-  <link rel="stylesheet" href="vendedores.css?v=4.5">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4.7">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4.7">
+  <link rel="stylesheet" href="vendedores.css?v=4.7">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -36,7 +36,7 @@
       </div>
       <h1>Pedidos vendedor</h1>
       <p class="sub">Sugerencia de pedido · IEM GROUP</p>
-      <p class="muted login-version" style="text-align:center;margin:0.25rem 0 0;font-size:0.75rem;">v4.4</p>
+      <p class="muted login-version" style="text-align:center;margin:0.25rem 0 0;font-size:0.75rem;">v4.6</p>
       <div class="field">
         <label for="vUser">Usuario (código)</label>
         <input id="vUser" type="text" inputmode="numeric" autocomplete="username" placeholder="Ej. 400">
@@ -55,12 +55,25 @@
     <div class="header-bar">
       <div class="header-left">
         <img class="header-logo" src="./logo-iem-ventas.png" alt="IEM GROUP" width="48" height="40" decoding="async">
-        <div class="who" id="vWho">—</div>
+        <div class="who" id="vWho">
+          <span class="who-role" id="vWhoRole">Vendedor</span>
+          <span class="who-name" id="vWhoName">—</span>
+        </div>
       </div>
       <div class="header-right">
         <button type="button" class="theme-toggle" id="themeToggleBtnApp" title="Cambiar tema">🌙</button>
-        <button type="button" class="btn btn-outline" id="vLogoutBtn">Salir</button>
+        <button type="button" class="btn btn-outline btn-sm" id="vLogoutBtn">Salir</button>
       </div>
+    </div>
+
+    <div class="card" id="vRutaCard">
+      <div class="card-title">
+        <h2>Mi ruta de entrega</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="vRutaRefresh">↻</button>
+      </div>
+      <p class="muted" id="vRutaMeta">Cargando paradas del día…</p>
+      <div id="vRutaList" class="ruta-vend-list"></div>
+      <a id="vRutaMapsAll" class="btn btn-outline btn-sm" style="display:none;margin-top:.5rem;text-align:center" target="_blank" rel="noopener">Abrir ruta en Google Maps</a>
     </div>
 
     <div class="layout-main" id="vLayoutMain">
@@ -118,20 +131,33 @@
       <div class="totales" id="vTotales">0 cajas · 0 unidades</div>
       <div class="field">
         <label for="vNotas">Notas (opcional)</label>
-        <textarea id="vNotas" placeholder="Observaciones para almacén…"></textarea>
+        <textarea id="vNotas" rows="2" placeholder="Observaciones para almacén…"></textarea>
       </div>
-      <button type="button" class="btn btn-primary" id="vSendBtn">Enviar sugerencia a almacén</button>
+      <div class="geo-row" id="vGeoRow">
+        <label class="geo-toggle">
+          <input type="checkbox" id="vGeoCheck" checked>
+          <span class="geo-toggle-ui">
+            <span class="geo-ico">📍</span>
+            <span class="geo-txt">
+              <strong>Incluir mi ubicación</strong>
+              <small id="vGeoStatus">Se enviará con el pedido (para consolidado / ruta)</small>
+            </span>
+          </span>
+        </label>
+        <button type="button" class="btn btn-outline btn-sm" id="vGeoRefresh" title="Actualizar ubicación">↻</button>
+      </div>
+      <button type="button" class="btn btn-primary btn-send" id="vSendBtn">Enviar sugerencia a almacén</button>
     </div>
 </div>
 
   <div id="vToast" class="toast hidden"></div>
 
-  <script src="config.js?v=4.5"></script>
-  <script src="app-vendedores.js?v=4.5"></script>
+  <script src="config.js?v=4.7"></script>
+  <script src="app-vendedores.js?v=4.7"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=4.5').then(function (reg) {
+        navigator.serviceWorker.register('./sw.js?v=4.7').then(function (reg) {
           try { reg.update(); } catch (e) {}
         }).catch(function () {});
       });

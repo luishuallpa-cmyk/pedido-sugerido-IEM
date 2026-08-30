@@ -756,3 +756,125 @@ body:not(.light-theme) .ri-stock { color: #6ee7b7; }
 
  }
 
+
+
+/* —— Header estilo inventario —— */
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  margin-bottom: 0.85rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  box-shadow: 0 4px 18px rgba(0,0,0,.12);
+  backdrop-filter: blur(10px);
+}
+.header-left { display: flex; align-items: center; gap: 0.65rem; min-width: 0; }
+.header-logo { border-radius: 8px; object-fit: contain; }
+.header-bar .who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  line-height: 1.15;
+}
+.header-bar .who-role {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--green, #0A784C);
+  opacity: 0.95;
+}
+.header-bar .who-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 52vw;
+}
+.header-right { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.btn-sm { padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+
+/* —— Geolocalización —— */
+.geo-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.45rem;
+  margin: 0.65rem 0 0.85rem;
+}
+.geo-toggle {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--green, #0A784C) 35%, var(--border));
+  background: color-mix(in srgb, var(--green, #0A784C) 10%, var(--card));
+}
+.geo-toggle input {
+  margin-top: 0.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--green, #0A784C);
+}
+.geo-toggle-ui { display: flex; gap: 0.45rem; align-items: flex-start; min-width: 0; }
+.geo-ico { font-size: 1.15rem; line-height: 1.2; }
+.geo-txt { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
+.geo-txt strong { font-size: 0.88rem; }
+.geo-txt small { font-size: 0.72rem; color: var(--muted, #94a3b8); line-height: 1.3; }
+.geo-row .btn { flex-shrink: 0; align-self: center; min-width: 2.5rem; }
+.geo-toggle.is-off {
+  border-color: var(--border);
+  background: var(--card);
+  opacity: 0.85;
+}
+.geo-toggle.is-ok small { color: color-mix(in srgb, var(--green, #0A784C) 70%, var(--muted)); }
+.geo-toggle.is-err small { color: #f87171; }
+
+.btn-send {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  letter-spacing: 0.01em;
+}
+#vPedidoCard .totales {
+  font-weight: 700;
+  text-align: center;
+  padding: 0.55rem;
+  border-radius: 10px;
+  margin: 0.5rem 0;
+  background: color-mix(in srgb, var(--green, #0A784C) 12%, transparent);
+}
+
+@media (min-width: 900px) {
+  .header-bar .who-name { max-width: 28rem; }
+}
+
+.ruta-vend-list { display:flex; flex-direction:column; gap:.5rem; margin-top:.4rem; max-height:40vh; overflow:auto; }
+.ruta-vend-item {
+  padding:.55rem .65rem; border-radius:10px; border:1px solid var(--border, #334155);
+  background: color-mix(in srgb, var(--card, #1e293b) 90%, transparent);
+  font-size:.85rem;
+}
+.ruta-vend-item strong { display:block; margin-bottom:.15rem; }
+.ruta-vend-item .rv-dir { color: var(--muted, #94a3b8); font-size:.78rem; }
+.ruta-vend-item a { color:#38bdf8; font-weight:600; font-size:.8rem; text-decoration:none; }
+.ruta-vend-item .rv-miss { color:#fbbf24; font-size:.78rem; }
+
+.rv-transport { margin-bottom: .75rem; }
+.rv-transport-h {
+  font-size: .82rem; margin: .35rem 0 .4rem; padding: .4rem .55rem;
+  border-radius: 8px; background: color-mix(in srgb, var(--green, #0A784C) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--green, #0A784C) 30%, var(--border, #334155));
+}
+.rv-transport-h a { color: #38bdf8; font-weight: 600; text-decoration: none; }

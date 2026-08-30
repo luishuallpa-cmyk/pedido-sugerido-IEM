@@ -510,7 +510,225 @@
   }
 
   
-async function enviar() {
+
+  var ultimaGeo = null; // { lat, lng, accuracy, ts }
+
+  function setGeoStatus(msg, cls) {
+    var el = $('vGeoStatus');
+    var row = document.querySelector('.geo-toggle');
+    if (el) el.textContent = msg || '';
+    if (row) {
+      row.classList.toggle('is-off', cls === 'off');
+      row.classList.toggle('is-ok', cls === 'ok');
+      row.classList.toggle('is-err', cls === 'err');
+    }
+  }
+
+  function obtenerGeo(timeoutMs) {
+    return new Promise(function (resolve) {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      var done = false;
+      var to = setTimeout(function () {
+        if (done) return;
+        done = true;
+        resolve(ultimaGeo); // usar última conocida si hay
+      }, timeoutMs || 10000);
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          if (done) return;
+          done = true;
+          clearTimeout(to);
+          ultimaGeo = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            ts: Date.now()
+          };
+          resolve(ultimaGeo);
+        },
+        function (err) {
+          if (done) return;
+          done = true;
+          clearTimeout(to);
+          console.warn('geo', err);
+          resolve(ultimaGeo);
+        },
+        { enableHighAccuracy: true, timeout: timeoutMs || 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  async function precargarGeo() {
+    var chk = $('vGeoCheck');
+    if (chk && !chk.checked) {
+      setGeoStatus('Ubicación desactivada para este envío', 'off');
+      return;
+    }
+    setGeoStatus('Obteniendo ubicación…', '');
+    var g = await obtenerGeo(8000);
+    if (g) {
+      setGeoStatus(
+        'Listo · ' + g.lat.toFixed(5) + ', ' + g.lng.toFixed(5) +
+        (g.accuracy ? (' (±' + Math.round(g.accuracy) + ' m)') : ''),
+        'ok'
+      );
+    } else {
+      setGeoStatus('No se pudo obtener GPS. Puedes reintentar o enviar sin ubicación.', 'err');
+    }
+  }
+
+
+  
+  async function cargarMiRuta() {
+    var meta = $('vRutaMeta');
+    var list = $('vRutaList');
+    var linkAll = $('vRutaMapsAll');
+    if (!list || !supabaseClient || !perfil) return;
+    var vend = String(perfil.usuario || '').trim();
+    if (!vend) {
+      if (meta) meta.textContent = 'Sin código de vendedor.';
+      return;
+    }
+    if (meta) meta.textContent = 'Buscando paradas…';
+
+    // ubicación actual del vendedor (origen Maps)
+    var yo = null;
+    try {
+      yo = await new Promise(function (resolve) {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          function (pos) {
+            resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          },
+          function () { resolve(null); },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+        );
+      });
+    } catch (eY) {}
+
+    function linkUno(lat, lng) {
+      if (lat == null || lng == null) return '';
+      var u = 'https://www.google.com/maps/dir/?api=1&destination=' +
+        encodeURIComponent(lat + ',' + lng) + '&travelmode=driving';
+      if (yo) u += '&origin=' + encodeURIComponent(yo.lat + ',' + yo.lng);
+      return u;
+    }
+    function linkMulti(pts) {
+      var con = (pts || []).filter(function (p) { return p.lat != null && p.lng != null; });
+      if (!con.length) return '';
+      if (con.length === 1) return linkUno(con[0].lat, con[0].lng);
+      var dest = con[con.length - 1];
+      var mids = con.slice(0, -1);
+      if (mids.length > 8) mids = mids.slice(0, 8);
+      var wps = mids.map(function (p) { return p.lat + ',' + p.lng; }).join('|');
+      var u = 'https://www.google.com/maps/dir/?api=1&destination=' +
+        encodeURIComponent(dest.lat + ',' + dest.lng) +
+        (wps ? ('&waypoints=' + encodeURIComponent(wps)) : '') +
+        '&travelmode=driving';
+      if (yo) u += '&origin=' + encodeURIComponent(yo.lat + ',' + yo.lng);
+      return u;
+    }
+
+    try {
+      var d0 = new Date();
+      var iso0 = d0.toISOString().slice(0, 10);
+      var d1 = new Date(d0.getTime() + 86400000);
+      if (d1.getDay() === 0) d1 = new Date(d1.getTime() + 86400000);
+      var iso1 = d1.toISOString().slice(0, 10);
+      var res = await supabaseClient
+        .from('rutas_entrega')
+        .select('*')
+        .eq('vendedor_codigo', vend)
+        .in('fecha', [iso0, iso1])
+        .order('camion', { ascending: true });
+      if (res.error) throw res.error;
+      var rows = res.data || [];
+      if (!rows.length) {
+        var r2 = await supabaseClient
+          .from('rutas_entrega')
+          .select('*')
+          .eq('vendedor_codigo', vend)
+          .order('actualizado_en', { ascending: false })
+          .limit(100);
+        if (!r2.error) rows = r2.data || [];
+      }
+      if (!rows.length) {
+        list.innerHTML = '';
+        if (meta) meta.textContent = 'No hay ruta publicada para tu código (' + vend + ').';
+        if (linkAll) linkAll.style.display = 'none';
+        return;
+      }
+
+      // Agrupar por transporte (camión)
+      var grupos = {};
+      rows.forEach(function (r) {
+        var g = r.camion || 'SIN TRANSPORTE';
+        if (!grupos[g]) grupos[g] = [];
+        grupos[g].push(r);
+      });
+      var nGeo = rows.filter(function (r) { return r.latitud != null; }).length;
+      if (meta) {
+        meta.textContent = (rows[0].fecha ? ('Fecha ' + rows[0].fecha + ' · ') : '') +
+          rows.length + ' clientes · ' + nGeo + ' con GPS' +
+          (yo ? ' · origen: tu ubicación' : ' · activa GPS para origen');
+      }
+
+      var html = '';
+      var allPts = [];
+      Object.keys(grupos).sort().forEach(function (g) {
+        var arr = grupos[g];
+        var pts = [];
+        arr.forEach(function (r) {
+          if (r.latitud != null && r.longitud != null) {
+            pts.push({ lat: r.latitud, lng: r.longitud });
+            allPts.push({ lat: r.latitud, lng: r.longitud });
+          }
+        });
+        var lm = linkMulti(pts);
+        html += '<div class="rv-transport">' +
+          '<div class="rv-transport-h"><strong>🚛 ' + g + '</strong> · ' + arr.length + ' paradas' +
+          (lm ? ' · <a href="' + lm + '" target="_blank" rel="noopener">Maps este transporte</a>' : '') +
+          '</div>';
+        arr.forEach(function (r, i) {
+          var has = r.latitud != null && r.longitud != null;
+          var maps = has ? linkUno(r.latitud, r.longitud) : '';
+          html += '<div class="ruta-vend-item">' +
+            '<strong>' + (i + 1) + '. ' + String(r.cliente_nombre || r.cliente_codigo || '') + '</strong>' +
+            '<div class="rv-dir">' + String(r.direccion || '—') + '</div>' +
+            (maps
+              ? '<a href="' + maps + '" target="_blank" rel="noopener">📍 Cómo llegar</a>'
+              : '<div class="rv-miss">Sin GPS en catálogo</div>') +
+            '</div>';
+        });
+        html += '</div>';
+      });
+      list.innerHTML = html;
+
+      if (linkAll && allPts.length) {
+        linkAll.href = linkMulti(allPts);
+        linkAll.style.display = 'block';
+        linkAll.textContent = 'Maps · toda mi ruta' + (yo ? ' (desde aquí)' : '');
+      } else if (linkAll) {
+        linkAll.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn(e);
+      if (meta) {
+        var m = (e && e.message) || String(e);
+        if (/relation.*does not exist/i.test(m)) {
+          meta.textContent = 'Aún no está activa la tabla de rutas en Supabase.';
+        } else {
+          meta.textContent = 'No se pudo cargar la ruta.';
+        }
+      }
+    }
+  }
+
+
+  async function enviar() {
     if (enviandoPedido) return;
     if (!pedido.length) {
       toast('El pedido está vacío', true);
@@ -548,6 +766,20 @@ async function enviar() {
     }
     var nom = String(perfil.nombre || perfil.usuario || usr).trim();
 
+    var geoOptIn = !($('vGeoCheck') && !$('vGeoCheck').checked);
+    var geo = null;
+    if (geoOptIn) {
+      if (btn) btn.textContent = 'Ubicación…';
+      setGeoStatus('Obteniendo ubicación…', '');
+      geo = await obtenerGeo(12000);
+      if (geo) {
+        setGeoStatus('Listo · ' + geo.lat.toFixed(5) + ', ' + geo.lng.toFixed(5), 'ok');
+      } else {
+        setGeoStatus('Sin GPS — el pedido se envía igual', 'err');
+      }
+      if (btn) btn.textContent = 'Enviando…';
+    }
+
     var payload = {
       id: pedidoId,
       usuario: usr,
@@ -560,6 +792,12 @@ async function enviar() {
     };
     if (notasVal) payload.notas = notasVal;
     if (perfil.ruta || perfil.Ruta) payload.ruta = perfil.ruta || perfil.Ruta;
+    if (geo) {
+      payload.latitud = geo.lat;
+      payload.longitud = geo.lng;
+      payload.geo_precision_m = geo.accuracy != null ? Math.round(geo.accuracy) : null;
+      payload.geo_en = new Date(geo.ts || Date.now()).toISOString();
+    }
 
     function sinCols(obj, cols) {
       var o = Object.assign({}, obj);
@@ -600,6 +838,11 @@ async function enviar() {
         }
         if (/column.*ruta|schema cache.*ruta/i.test(msg)) {
           res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['ruta', 'notas']));
+          error = res.error;
+          continue;
+        }
+        if (/column.*latitud|column.*longitud|column.*geo_|schema cache.*(latitud|longitud|geo_)/i.test(msg)) {
+          res = await supabaseClient.from('pedidos_sugeridos').insert(sinCols(payload, ['latitud', 'longitud', 'geo_precision_m', 'geo_en']));
           error = res.error;
           continue;
         }
@@ -683,14 +926,24 @@ async function enviar() {
     var _et = 'Vendedor';
     if (_rol === 'admin') _et = 'Admin';
     else if (_rol === 'supervisor' || _usr === '4901') _et = 'Supervisor';
-    if (_nom && _usr && _nom.toLowerCase() !== _usr.toLowerCase()) {
-      $('vWho').textContent = _et + ' · ' + _nom + ' · ' + _usr;
-    } else {
-      $('vWho').textContent = _usr ? (_et + ' ' + _usr) : _et;
+    var roleEl = $('vWhoRole');
+    var nameEl = $('vWhoName');
+    if (roleEl) roleEl.textContent = _et;
+    if (nameEl) {
+      if (_nom && _usr && _nom.toLowerCase() !== _usr.toLowerCase()) {
+        nameEl.textContent = _nom + ' · ' + _usr;
+      } else {
+        nameEl.textContent = _nom || _usr || '—';
+      }
+    } else if ($('vWho')) {
+      $('vWho').textContent = _et + ' ' + (_nom || _usr || '');
     }
     try {
       if (typeof window.__vPushBackGuard === 'function') window.__vPushBackGuard();
     } catch (eG) {}
+    // precargar GPS en segundo plano
+    try { precargarGeo(); } catch (eGeo) {}
+    try { cargarMiRuta(); } catch (eR) {}
   }
 
   async function login() {
@@ -823,6 +1076,16 @@ async function enviar() {
       }
     });
     $('vSendBtn').addEventListener('click', enviar);
+    if ($('vRutaRefresh')) $('vRutaRefresh').addEventListener('click', function () { cargarMiRuta(); });
+    if ($('vGeoCheck')) {
+      $('vGeoCheck').addEventListener('change', function () {
+        if (this.checked) precargarGeo();
+        else setGeoStatus('Ubicación desactivada para este envío', 'off');
+      });
+    }
+    if ($('vGeoRefresh')) {
+      $('vGeoRefresh').addEventListener('click', function () { precargarGeo(); });
+    }
     if ($('vNotas')) {
       $('vNotas').addEventListener('change', guardarBorradorPedido);
       $('vNotas').addEventListener('blur', guardarBorradorPedido);
