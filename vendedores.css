@@ -438,6 +438,12 @@ body.light-theme .result-item.selected { background: #f0fdf4; }
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.producto-card .pc-codes strong,
+.result-item .ri-meta strong,
+.pedido-item .pi-qty strong {
+  font-weight: 700;
+  color: var(--heading);
+}
 .qty-row { display: flex; gap: 0.55rem; margin: 0.65rem 0; }
 .qty-row .field { flex: 1; margin: 0; }
 .pc-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.35rem; }

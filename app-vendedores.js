@@ -365,7 +365,7 @@
           imgHtml(p.imagen_url, 'ri-img') +
           '<div class="ri-body">' +
             '<div class="ri-name">' + escapeHtml(p.descripcion) + '</div>' +
-            '<div class="ri-meta">Cód: ' + escapeHtml(p.codigo) +
+            '<div class="ri-meta">Cód: <strong>' + escapeHtml(p.codigo) + '</strong>' +
               (p.codigo_fabrica ? ' · Fáb: ' + escapeHtml(p.codigo_fabrica) : '') +
               (p.tipo_almacen ? ' · ' + escapeHtml(p.tipo_almacen) : '') +
               (p.linea ? ' · ' + escapeHtml(p.linea) : '') +
@@ -401,10 +401,10 @@
       }
     }
     $('vProdName').textContent = selected.descripcion;
-    $('vProdCodes').textContent =
-      'Cód: ' + selected.codigo +
-      ' · Cód. Fábrica: ' + (selected.codigo_fabrica || '—') +
-      (selected.linea ? ' · ' + selected.linea : '');
+    $('vProdCodes').innerHTML =
+      'Cód: <strong>' + escapeHtml(selected.codigo) + '</strong>' +
+      ' · Cód. Fábrica: ' + escapeHtml(selected.codigo_fabrica || '—') +
+      (selected.linea ? ' · ' + escapeHtml(selected.linea) : '');
     $('vFactor').textContent = 'Factor empaque: ×' + selected.factor_empaque +
       (selected.unidad_ref ? ' · UM: ' + selected.unidad_ref : '');
     $('vCajas').value = '0';
@@ -448,7 +448,7 @@
               imgHtml(x.imagen_url, 'pi-img') +
               '<div class="pi-info">' +
                 '<div class="pi-name">' + escapeHtml(x.descripcion) + '</div>' +
-                '<div class="pi-qty">' + escapeHtml(x.codigo) + ' · ' + x.cajas + ' cajas · ' + x.unidades + ' unid.</div>' +
+                '<div class="pi-qty"><strong>' + escapeHtml(x.codigo) + '</strong> · ' + x.cajas + ' cajas · ' + x.unidades + ' unid.</div>' +
               '</div>' +
             '</div>' +
             '<button type="button" class="btn btn-danger pi-del" data-idx="' + i + '" title="Quitar">✕</button>' +
