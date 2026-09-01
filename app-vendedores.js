@@ -509,79 +509,6 @@
     });
   }
 
-  
-
-  var ultimaGeo = null; // { lat, lng, accuracy, ts }
-
-  function setGeoStatus(msg, cls) {
-    var el = $('vGeoStatus');
-    var row = document.querySelector('.geo-toggle');
-    if (el) el.textContent = msg || '';
-    if (row) {
-      row.classList.toggle('is-off', cls === 'off');
-      row.classList.toggle('is-ok', cls === 'ok');
-      row.classList.toggle('is-err', cls === 'err');
-    }
-  }
-
-  function obtenerGeo(timeoutMs) {
-    return new Promise(function (resolve) {
-      if (!navigator.geolocation) {
-        resolve(null);
-        return;
-      }
-      var done = false;
-      var to = setTimeout(function () {
-        if (done) return;
-        done = true;
-        resolve(ultimaGeo); // usar última conocida si hay
-      }, timeoutMs || 10000);
-      navigator.geolocation.getCurrentPosition(
-        function (pos) {
-          if (done) return;
-          done = true;
-          clearTimeout(to);
-          ultimaGeo = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            ts: Date.now()
-          };
-          resolve(ultimaGeo);
-        },
-        function (err) {
-          if (done) return;
-          done = true;
-          clearTimeout(to);
-          console.warn('geo', err);
-          resolve(ultimaGeo);
-        },
-        { enableHighAccuracy: true, timeout: timeoutMs || 10000, maximumAge: 60000 }
-      );
-    });
-  }
-
-  async function precargarGeo() {
-    var chk = $('vGeoCheck');
-    if (chk && !chk.checked) {
-      setGeoStatus('Ubicación desactivada para este envío', 'off');
-      return;
-    }
-    setGeoStatus('Obteniendo ubicación…', '');
-    var g = await obtenerGeo(8000);
-    if (g) {
-      setGeoStatus(
-        'Listo · ' + g.lat.toFixed(5) + ', ' + g.lng.toFixed(5) +
-        (g.accuracy ? (' (±' + Math.round(g.accuracy) + ' m)') : ''),
-        'ok'
-      );
-    } else {
-      setGeoStatus('No se pudo obtener GPS. Puedes reintentar o enviar sin ubicación.', 'err');
-    }
-  }
-
-
-  
   async function cargarMiRuta() {
     var meta = $('vRutaMeta');
     var list = $('vRutaList');
@@ -766,20 +693,6 @@
     }
     var nom = String(perfil.nombre || perfil.usuario || usr).trim();
 
-    var geoOptIn = !($('vGeoCheck') && !$('vGeoCheck').checked);
-    var geo = null;
-    if (geoOptIn) {
-      if (btn) btn.textContent = 'Ubicación…';
-      setGeoStatus('Obteniendo ubicación…', '');
-      geo = await obtenerGeo(12000);
-      if (geo) {
-        setGeoStatus('Listo · ' + geo.lat.toFixed(5) + ', ' + geo.lng.toFixed(5), 'ok');
-      } else {
-        setGeoStatus('Sin GPS — el pedido se envía igual', 'err');
-      }
-      if (btn) btn.textContent = 'Enviando…';
-    }
-
     var payload = {
       id: pedidoId,
       usuario: usr,
@@ -792,12 +705,6 @@
     };
     if (notasVal) payload.notas = notasVal;
     if (perfil.ruta || perfil.Ruta) payload.ruta = perfil.ruta || perfil.Ruta;
-    if (geo) {
-      payload.latitud = geo.lat;
-      payload.longitud = geo.lng;
-      payload.geo_precision_m = geo.accuracy != null ? Math.round(geo.accuracy) : null;
-      payload.geo_en = new Date(geo.ts || Date.now()).toISOString();
-    }
 
     function sinCols(obj, cols) {
       var o = Object.assign({}, obj);
@@ -941,8 +848,6 @@
     try {
       if (typeof window.__vPushBackGuard === 'function') window.__vPushBackGuard();
     } catch (eG) {}
-    // precargar GPS en segundo plano
-    try { precargarGeo(); } catch (eGeo) {}
   }
 
   async function login() {
@@ -1094,15 +999,6 @@
     if ($('vRutaClose')) $('vRutaClose').addEventListener('click', cerrarPanelRuta);
     if ($('vRutaBackdrop')) $('vRutaBackdrop').addEventListener('click', cerrarPanelRuta);
     if ($('vRutaRefresh')) $('vRutaRefresh').addEventListener('click', function () { cargarMiRuta(); });
-    if ($('vGeoCheck')) {
-      $('vGeoCheck').addEventListener('change', function () {
-        if (this.checked) precargarGeo();
-        else setGeoStatus('Ubicación desactivada para este envío', 'off');
-      });
-    }
-    if ($('vGeoRefresh')) {
-      $('vGeoRefresh').addEventListener('click', function () { precargarGeo(); });
-    }
     if ($('vNotas')) {
       $('vNotas').addEventListener('change', guardarBorradorPedido);
       $('vNotas').addEventListener('blur', guardarBorradorPedido);
